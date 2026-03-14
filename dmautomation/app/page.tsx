@@ -271,6 +271,17 @@ export default function Home() {
           <Link href="#features" className="hover:text-white transition-colors">Features</Link>
           <Link href="#how-it-works" className="hover:text-white transition-colors">How it works</Link>
           <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+          <Link
+            href="/ai-ads"
+            className="group flex items-center gap-2 text-white/90 hover:text-white transition-colors px-3 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 hover:border-violet-500/50"
+            style={{ boxShadow: "0 0 20px rgba(139,92,246,0.15)" }}
+          >
+            AI Ads
+            <div className="relative flex h-2.5 w-2.5 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-60"></span>
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-400"></span>
+            </div>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login" className="text-sm font-medium text-white/60 hover:text-primary transition-colors">
