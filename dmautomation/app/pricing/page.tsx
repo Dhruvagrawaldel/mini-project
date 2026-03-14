@@ -95,14 +95,26 @@ const plans = [
 ];
 
 const tableRows = [
-  { label: "Pricing",         free: "₹0 /mo",     pro: "₹499 /mo",    type: "text" },
-  { label: "Automations",     free: "Unlimited",   pro: "Unlimited",   type: "text", colored: true },
-  { label: "DM Send Limit",   free: "1,000",       pro: "Unlimited",   type: "text", proColored: true },
-  { label: "Contacts",        free: "1,000",       pro: "Unlimited",   type: "text", proColored: true },
-  { label: "Re-trigger",      free: false,         pro: true,          type: "bool" },
-  { label: "Ask For Follow",  free: false,         pro: true,          type: "bool" },
-  { label: "Lead Gen",        free: false,         pro: true,          type: "bool" },
-  { label: "Priority Support",free: false,         pro: true,          type: "bool" },
+  { isHeader: true, label: "Core Features" },
+  { label: "Pricing",         free: "₹0 /mo",     pro: "₹499 /mo",    ent: "Custom", type: "text" },
+  { label: "Automations",     free: "Unlimited",   pro: "Unlimited",   ent: "Unlimited", type: "text", colored: true },
+  { label: "DM Send Limit",   free: "1,000",       pro: "Unlimited",   ent: "Unlimited", type: "text", proColored: true },
+  { label: "Contacts",        free: "1,000",       pro: "Unlimited",   ent: "Unlimited", type: "text", proColored: true },
+  { label: "Re-trigger",      free: false,         pro: true,          ent: true, type: "bool" },
+  { label: "Ask For Follow",  free: false,         pro: true,          ent: true, type: "bool" },
+  { label: "Lead Gen",        free: false,         pro: true,          ent: true, type: "bool" },
+  { label: "Priority Support",free: false,         pro: true,          ent: true, type: "bool" },
+  { isHeader: true, label: "Video creation" },
+  { label: "Watermark removal", free: false, pro: true, ent: true, type: "bool" },
+  { label: "Monthly credits", free: "60", pro: "From 600", ent: "From 600", type: "text" },
+  { label: "Upload video length", free: "60 mins", pro: "600 mins", ent: "600 mins", type: "text" },
+  { label: "Upload video size", free: "1GB", pro: "10GB", ent: "10GB", type: "text" },
+  { label: "Upload quality", free: "1080p", pro: "4K", ent: "4K", type: "text" },
+  { label: "Export quality", free: "720p", pro: "4K", ent: "4K", type: "text" },
+  { label: "Export length", free: "10 mins", pro: "Unlimited", ent: "Unlimited", type: "text" },
+  { label: "Video storage", free: "3 days", pro: "Active sub.", ent: "Active sub.", type: "text" },
+  { label: "API", free: false, pro: true, ent: true, type: "bool" },
+  { label: "API rate limit", free: "1/m · 10/h", pro: "3/m · 20/h", ent: "10/m · 60/h", type: "text" },
 ];
 
 // ── Plan card ────────────────────────────────────────────────────────
@@ -415,35 +427,55 @@ export default function PricingPage() {
                   <th className="text-left p-6 font-bold text-lg text-white">Features</th>
                   <th className="p-6 text-center font-semibold text-white/40">Free</th>
                   <th className="p-6 text-center font-bold" style={{ color: "#a78bfa" }}>Pro ✦</th>
+                  <th className="p-6 text-center font-bold" style={{ color: "#f472b6" }}>Enterprise</th>
                 </tr>
               </thead>
               <tbody>
                 {tableRows.map((row, i) => (
+                  (row as any).isHeader ? (
+                    <tr key={row.label} className="border-b border-white/5 bg-white/[0.02]">
+                      <td colSpan={4} className="px-6 py-4 text-base font-black tracking-wide text-white/90">
+                        {row.label}
+                      </td>
+                    </tr>
+                  ) : (
                   <tr key={row.label} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                    <td className="p-5 text-sm font-semibold" style={{ color: "#818cf8" }}>{row.label}</td>
+                    <td className="p-5 text-sm font-semibold pl-6" style={{ color: "#818cf8" }}>{row.label}</td>
                     <td className="p-5 text-center">
                       {row.type === "text" ? (
                         <span className={`text-sm font-medium ${(row as any).colored ? "text-indigo-400" : "text-white/40"}`}>
-                          {String(row.free)}
+                          {row.free}
                         </span>
                       ) : row.free ? (
                         <Check className="w-5 h-5 text-indigo-400 mx-auto" />
                       ) : (
-                        <X className="w-5 h-5 text-red-500 mx-auto" />
+                        <span className="text-white/20 font-bold">—</span>
                       )}
                     </td>
                     <td className="p-5 text-center">
                       {row.type === "text" ? (
                         <span className={`text-sm font-medium ${(row as any).proColored || (row as any).colored ? "text-violet-400" : "text-white/40"}`}>
-                          {String(row.pro)}
+                          {row.pro}
                         </span>
                       ) : row.pro ? (
-                        <Check className="w-5 h-5 text-violet-400 mx-auto" />
+                        <Check className="w-5 h-5 text-violet-400 mx-auto" strokeWidth={3} />
                       ) : (
-                        <X className="w-5 h-5 text-red-500 mx-auto" />
+                        <span className="text-white/20 font-bold">—</span>
+                      )}
+                    </td>
+                    <td className="p-5 text-center">
+                      {row.type === "text" ? (
+                        <span className={`text-sm font-medium ${(row as any).entColored || (row as any).colored ? "text-pink-400" : "text-white/40"}`}>
+                          {(row as any).ent}
+                        </span>
+                      ) : (row as any).ent ? (
+                        <Check className="w-5 h-5 text-pink-400 mx-auto" strokeWidth={3} />
+                      ) : (
+                        <span className="text-white/20 font-bold">—</span>
                       )}
                     </td>
                   </tr>
+                  )
                 ))}
               </tbody>
             </table>

@@ -254,6 +254,139 @@ export default function AiAdsPage() {
           
         </div>
       </section>
+
+      {/* ── How to use section ── */}
+      <section className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24 border-t border-white/5">
+        <div className="text-center mb-16" style={parallax(-2)}>
+          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight" style={{ fontFamily: "Impact, sans-serif", letterSpacing: "0.5px" }}>
+            How to use the <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">AI Ad Generator:</span>
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6" style={parallax(3)}>
+          {[
+            {
+              step: "STEP 1",
+              title: "Choose your starting point",
+              desc: "Choose Text to Video, Text to Image, Image to Video, or Video to Video. Describe your concept, upload product images, or transform existing footage—our AI advertising tool works with any input type."
+            },
+            {
+              step: "STEP 2",
+              title: "Select AI model and video format",
+              desc: "Select from models like Veo 3 for cinematic quality, Kling for precise motion, or other specialized models depending on your ad style. Set your aspect ratio (9:16 for TikTok and Reels, 1:1 for Instagram Feed, 16:9 for YouTube). Type your prompt or upload your assets, then generate your video ad."
+            },
+            {
+              step: "STEP 3",
+              title: "Edit and export your ad",
+              desc: <>Load your AI-generated ad in our video editor. Add your logo and font colors, insert <a href="#" className="text-blue-400 hover:text-blue-300 transition-colors">text-to-speech voiceovers</a>, or layer in brand graphics. Combine clips, add captions, and export.</>
+            }
+          ].map((card, i) => (
+            <div 
+              key={i} 
+              className="bg-[#0b0b13] border border-white/10 rounded-3xl p-8 hover:border-violet-500/30 transition-colors duration-300 shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col items-start"
+            >
+              <div className="text-[10px] font-black tracking-widest text-white/40 mb-4 uppercase">
+                {card.step}
+              </div>
+              <h3 className="text-xl md:text-2xl font-bold mb-6 text-white/90 leading-tight">
+                {card.title}
+              </h3>
+              <p className="text-white/50 text-sm leading-relaxed mt-auto">
+                {card.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── More Than An AI Ad Generator ── */}
+      <section className="relative z-10 w-full max-w-6xl mx-auto px-6 py-32 mb-10 overflow-hidden">
+        <div className="text-center mb-16" style={parallax(-2)}>
+          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight" style={{ fontFamily: "Impact, sans-serif", letterSpacing: "1px" }}>
+            MORE THAN AN <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-pink-400">AI AD GENERATOR</span>
+          </h2>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-10 text-white/70 text-lg leading-relaxed mb-24 max-w-5xl mx-auto" style={parallax(2)}>
+          <p>
+            AutoDM combines AI ad creation with a complete video production platform. Use our <a href="#" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">video script generator</a> to plan campaigns, record screen captures for product demos, and turn presentations into videos. Access professional
+          </p>
+          <p>
+            editing tools, team collaboration features, and brand management—all in one workspace. Whether you're creating video ads, social content, or tutorials, AutoDM supports your entire video workflow. Start creating videos like a pro today!
+          </p>
+        </div>
+      </section>
+
+      {/* ── Video Editor Features ── */}
+      <section className="relative z-10 w-full px-6 py-28 bg-gradient-to-b from-transparent via-violet-900/10 to-[#5b21b6]/20 border-t border-white/5 shadow-[inset_0_0_100px_rgba(139,92,246,0.1)]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16" style={parallax(-2)}>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5">
+              Plus, an easy-to-use video<br />editor for full creative control
+            </h2>
+            <p className="text-xl text-violet-200/80 font-medium">
+              Edit with AI or manually, all up to you.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6" style={parallax(3)}>
+            {[
+              {
+                title: "Edit by text",
+                desc: "Trim videos by deleting the corresponding video transcription. Edit videos as easy as a doc.",
+                img: "https://images.unsplash.com/photo-1542626991-cbc4e32524cc?w=600&h=400&fit=crop"
+              },
+              {
+                title: "Caption translation",
+                desc: "Translate your captions to over 100 languages and reach your audience globally.",
+                img: "https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=600&h=400&fit=crop"
+              },
+              {
+                title: "Change ratio",
+                desc: "One click to resize and make your videos fit different social platform instantly.",
+                img: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&h=400&fit=crop"
+              },
+              {
+                title: "Timeline editing",
+                desc: "Fine-tune text-based edits by timeline down to seconds-level with our intuitive timeline-editor.",
+                img: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&h=400&fit=crop"
+              },
+              {
+                title: "Brand template",
+                desc: "Leverage templated designed by AutoDM or save one of your own. Make your videos always stay on brand.",
+                img: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=600&h=400&fit=crop"
+              },
+              {
+                title: "Link share",
+                desc: "Share your videos as a link and collaborate with teams effortlessly.",
+                img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&h=400&fit=crop"
+              }
+            ].map((card, i) => (
+              <div 
+                key={i} 
+                className="bg-violet-900/20 border border-violet-500/20 rounded-[2rem] overflow-hidden hover:border-violet-400/50 hover:bg-violet-800/20 transition-all duration-300 flex flex-col group cursor-pointer shadow-xl shadow-violet-900/5"
+              >
+                <div className="h-[220px] overflow-hidden bg-[#0d0d1a] relative border-b border-violet-500/20 p-4">
+                  <div className="absolute inset-0 bg-violet-500/5 group-hover:bg-transparent transition-colors duration-300 z-10 pointer-events-none" />
+                  <img 
+                    src={card.img} 
+                    alt={card.title} 
+                    className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100" 
+                  />
+                </div>
+                <div className="p-8 flex-1 flex flex-col">
+                  <h3 className="text-xl md:text-2xl font-bold mb-3 text-white/95 tracking-tight">
+                    {card.title}
+                  </h3>
+                  <p className="text-violet-100/60 text-sm leading-relaxed">
+                    {card.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
       
       {/* ── Spacer for visual balance ── */}
       <div className="h-20" />
