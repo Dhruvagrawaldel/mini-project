@@ -41,7 +41,7 @@ export async function GET() {
       const nextDate = new Date(date);
       nextDate.setDate(date.getDate() + 1);
 
-      const { count } = await supabaseAdmin
+      const { count: dmsSent } = await supabaseAdmin
         .from("logs")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
@@ -49,10 +49,17 @@ export async function GET() {
         .gte("created_at", date.toISOString())
         .lt("created_at", nextDate.toISOString());
 
+      const { count: totalInteractions } = await supabaseAdmin
+        .from("logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", date.toISOString())
+        .lt("created_at", nextDate.toISOString());
+
       last7Days.push({
         name: date.toLocaleDateString("en-US", { weekday: "short" }),
-        dms: count || 0,
-        comments: (count || 0) + (Math.floor(Math.random() * 5)), // Simulation for visuals
+        dms: dmsSent || 0,
+        comments: totalInteractions || 0,
       });
     }
 

@@ -4,6 +4,14 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
+    // Guard: Supabase not configured yet
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { message: "Database not configured. Please add your Supabase credentials to .env.local and restart the server." },
+        { status: 503 }
+      );
+    }
+
     const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {

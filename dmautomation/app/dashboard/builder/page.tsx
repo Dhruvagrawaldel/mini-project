@@ -14,6 +14,7 @@ export default function AutomationBuilder() {
   const [triggerType, setTriggerType] = useState("comment");
   const [keywords, setKeywords] = useState("course, link");
   const [replyMessage, setReplyMessage] = useState("Hey there! Here is the link you requested: https://example.com/course");
+  const [postId, setPostId] = useState("all");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function AutomationBuilder() {
             setName(data.name);
             setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
             setReplyMessage(data.response_message);
+            setPostId(data.post_id || "all");
             setTriggerType(data.trigger_type || "comment");
           }
         } catch (err) {
@@ -50,6 +52,7 @@ export default function AutomationBuilder() {
           keywords,
           response_message: replyMessage,
           trigger_type: triggerType,
+          post_id: postId,
         }),
       });
 
@@ -153,11 +156,50 @@ export default function AutomationBuilder() {
             </div>
           </section>
 
+          {/* Post Selection */}
+          <section className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-green-500" />
+              3. Apply to Post
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setPostId('all')}
+                  className={`flex-1 p-3 rounded-xl border text-sm font-medium transition-all ${postId === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-white/5'}`}
+                >
+                  All Current & Future Posts
+                </button>
+                <button 
+                  onClick={() => setPostId('')}
+                  className={`flex-1 p-3 rounded-xl border text-sm font-medium transition-all ${postId !== 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-white/5'}`}
+                >
+                  Specific Post
+                </button>
+              </div>
+
+              {postId !== 'all' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="block text-sm font-medium mb-1.5 text-muted-foreground">Post Media ID</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter Instagram Media ID" 
+                    className="w-full bg-background border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-mono"
+                    value={postId}
+                    onChange={(e) => setPostId(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">Find the ID in your Meta Developer Hub or post URL.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* Action */}
           <section className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <LinkIcon className="w-5 h-5 text-purple-500" />
-              3. Response Message
+              4. Response Message
             </h2>
             
             <div className="space-y-4">
