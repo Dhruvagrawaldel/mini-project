@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #000000;
+    --foreground: #ffffff;
+    
+    --card: #0a0a0a;
+    --card-foreground: #ffffff;
+    
+    --popover: #0a0a0a;
+    --popover-foreground: #ffffff;
+    
+    --primary: #8b5cf6;
+    --primary-foreground: #ffffff;
+    
+    --secondary: #1e1e24;
+    --secondary-foreground: #ffffff;
+    
+    --muted: #1e1e24;
+    --muted-foreground: #a1a1aa;
+    
+    --accent: #1e1e24;
+    --accent-foreground: #ffffff;
+    
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #8b5cf6;
+
+    --radius: 0.5rem;
+  }
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.15), transparent 25%);
+    min-height: 100vh;
+  }
+}
+
+/* Custom Animated Grid Background */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, transparent, black, transparent);
+}
+
+.text-gradient {
+  background: linear-gradient(to right, #8b5cf6, #d946ef);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
