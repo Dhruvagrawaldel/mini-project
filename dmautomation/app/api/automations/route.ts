@@ -32,9 +32,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, keywords, response_message, post_id } = await req.json();
+    const { name, keywords, response_message, post_id, is_ai_enabled, brand_tone, goal } = await req.json();
 
-    if (!name || !keywords || !response_message) {
+    if (!name || !keywords) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
@@ -49,9 +49,12 @@ export async function POST(req: Request) {
           user_id: (session.user as any).id,
           name,
           keywords: keywordsArray,
-          response_message,
+          response_message: response_message || "",
           post_id: post_id || "all",
           is_active: true,
+          is_ai_enabled: !!is_ai_enabled,
+          brand_tone: brand_tone || "Friendly",
+          goal: goal || "Move to DM",
         },
       ])
       .select()

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import axios from "axios";
+import { generateInstagramReply } from "@/lib/ai";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -61,12 +62,47 @@ export async function POST(req: Request) {
 
               if (matches) {
                 try {
-                  // 3. Send the DM via Instagram Graph API
+                  let finalResponse = automation.response_message;
+
+                  // 3. If AI is enabled, generate a personalized reply
+                  if (automation.is_ai_enabled) {
+                    try {
+                      // Get post context (caption)
+                      const mediaRes = await axios.get(`https://graph.facebook.com/v19.0/${mediaId}`, {
+                        params: { 
+                          fields: "caption",
+                          access_token: user.ig_access_token 
+                        }
+                      });
+                      
+                      const caption = mediaRes.data?.caption || "";
+                      
+                      const aiReply = await generateInstagramReply({
+                        caption,
+                        comment: value.text,
+                        tone: automation.brand_tone,
+                        goal: automation.goal
+                      });
+
+                      if (aiReply) {
+                        finalResponse = aiReply;
+                      }
+                    } catch (aiError) {
+                      console.error("AI Generation failed, falling back to static message:", aiError);
+                    }
+                  }
+
+                  if (!finalResponse) {
+                    console.warn(`No response generated for automation ${automation.id}`);
+                    continue;
+                  }
+
+                  // 4. Send the DM via Instagram Graph API
                   await axios.post(
                     `https://graph.facebook.com/v19.0/me/messages`,
                     {
                       recipient: { id: fromId },
-                      message: { text: automation.response_message },
+                      message: { text: finalResponse },
                     },
                     {
                       params: { access_token: user.ig_access_token },
