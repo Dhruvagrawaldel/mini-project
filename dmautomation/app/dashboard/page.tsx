@@ -220,7 +220,7 @@ export default function DashboardPage() {
             </TiltCard>
           </motion.div>
         </div>
-        
+
         {/* Connection Warning */}
         {!isInstagramConnected && (
           <motion.div 

@@ -1,20 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle, ArrowRight } from "lucide-react";
+import { MessageCircle, ArrowRight, Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Toast } from "@/components/Toast";
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     try {
       const res = await signIn("credentials", {
@@ -25,17 +30,24 @@ export default function LoginPage() {
 
       if (res?.error) {
         setError(res.error);
+        setToast({ message: res.error, type: "error" });
+        setIsLoading(false);
         return;
       }
 
-      router.push("/dashboard");
-    } catch (error) {
-      console.log(error);
+      setToast({ message: "Logged in successfully! Redirecting...", type: "success" });
+      setTimeout(() => router.push("/dashboard"), 1500);
+    } catch (err) {
+      console.log(err);
       setError("An error occurred");
+      setToast({ message: "An error occurred. Please try again.", type: "error" });
+      setIsLoading(false);
     }
   };
 
   return (
+    <>
+    {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     <div className="min-h-screen flex text-foreground">
       {/* Left panel - Form */}
       <div className="w-full lg:w-1/2 flex flex-col p-8 sm:p-12 md:p-16 xl:p-24 relative z-10 bg-background/50 backdrop-blur-xl">
@@ -109,11 +121,24 @@ export default function LoginPage() {
             </div>
             
             <button 
-              type="submit" 
-              className="mt-4 flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-xl font-medium hover:bg-primary/90 transition-colors"
+              type="submit"
+              disabled={isLoading}
+              className="relative mt-4 w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-bold text-white overflow-hidden group/btn disabled:opacity-60 disabled:cursor-not-allowed transition-all"
             >
-              Sign In
-              <ArrowRight className="w-4 h-4" />
+              {/* Gradient background */}
+              <span className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 transition-all duration-300 group-hover/btn:from-violet-500 group-hover/btn:via-purple-500 group-hover/btn:to-fuchsia-500" />
+              {/* Glow */}
+              <span className="absolute inset-0 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 blur-xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600" />
+              {/* Shimmer sweep */}
+              <span className="absolute inset-0 opacity-0 group-hover/btn:opacity-100 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)] bg-[length:200%] transition-all duration-500 group-hover/btn:bg-[position:200%]" />
+              {/* Border */}
+              <span className="absolute inset-0 rounded-xl ring-1 ring-white/20" />
+              {/* Content */}
+              <span className="relative z-10 flex items-center gap-2">
+                {isLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>
+                  : <>Sign In <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" /></>}
+              </span>
             </button>
           </form>
           
@@ -167,5 +192,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

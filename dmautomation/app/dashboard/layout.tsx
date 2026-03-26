@@ -11,7 +11,9 @@ import {
   LogOut,
   Menu,
   X,
-  Instagram
+  Instagram,
+  Sparkles,
+  CreditCard
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
@@ -30,6 +32,8 @@ export default function DashboardLayout({
     { name: "Builder", href: "/dashboard/builder", icon: Zap },
     { name: "Instagram", href: "/dashboard/instagram", icon: Instagram },
     { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+    { name: "AI Ads", href: "/dashboard/ai-ads", icon: Sparkles, badge: true },
+    { name: "Pricing", href: "/dashboard/pricing", icon: CreditCard },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
 
@@ -83,12 +87,17 @@ export default function DashboardLayout({
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
                   isActive 
                     ? "bg-primary/10 text-primary" 
+                    : link.badge
+                    ? "text-violet-300 hover:text-violet-200 hover:bg-violet-500/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <Icon className={`w-5 h-5 ${isActive ? "text-primary" : ""}`} />
-                {link.name}
+                <Icon className={`w-5 h-5 ${isActive ? "text-primary" : link.badge ? "text-violet-400" : ""}`} />
+                <span className="flex-1">{link.name}</span>
+                {link.badge && !isActive && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 uppercase tracking-wider">New</span>
+                )}
               </Link>
             )
           })}

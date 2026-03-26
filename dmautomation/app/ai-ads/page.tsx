@@ -189,10 +189,10 @@ export default function AiAdsPage() {
 
       </main>
 
-      {/* ── Carousel Section ── */}
+      {/* ── Auto-Running Carousel Section ── */}
       <section className="relative z-10 w-full max-w-[1400px] mx-auto px-6 py-20 mt-10">
         <div className="grid md:grid-cols-[1.2fr_2fr] gap-12 items-center">
-          
+
           {/* Left Text */}
           <div className="pr-4 md:pr-12" style={parallax(-4)}>
             <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">
@@ -201,57 +201,74 @@ export default function AiAdsPage() {
             <p className="text-white/50 text-lg md:text-xl leading-relaxed mb-10 max-w-sm">
               Effortlessly produce scroll-stopping content for TikTok, Instagram, and YouTube.
             </p>
-            <div className="flex items-center gap-4">
-              <button className="w-14 h-14 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shadow-[0_0_15px_rgba(255,255,255,0.05)] active:scale-95">
-                <ArrowLeft className="w-6 h-6 text-white/70" />
-              </button>
-              <button className="w-14 h-14 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shadow-[0_0_15px_rgba(255,255,255,0.05)] active:scale-95">
-                <ArrowRight className="w-6 h-6 text-white/70" />
-              </button>
+            {/* Live indicator */}
+            <div className="flex items-center gap-3 text-sm font-bold text-white/50">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-400" />
+              </span>
+              Auto-playing • Hover to pause
             </div>
           </div>
 
-          {/* Right Carousel */}
-          <div className="relative w-full" style={parallax(4)}>
-            {/* Fade bounds to blend with the dark background */}
-            <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#030308] to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#030308] to-transparent z-10 pointer-events-none" />
-            
-            <div className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory pt-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {/* Right: Infinite Auto-Scroll Ticker */}
+          <div className="relative w-full overflow-hidden" style={parallax(4)}>
+            {/* Left & right fade masks */}
+            <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#030308] to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#030308] to-transparent z-10 pointer-events-none" />
+
+            {/* Ticker track — duplicated for seamless loop */}
+            <div className="flex gap-6 pt-4 pb-8 w-max carousel-track" style={{ animation: "scroll-x 22s linear infinite" }}>
               {[
                 { img: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&h=800&fit=crop", text: "Want to take stunning photos, let's..." },
-                { img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=800&fit=crop" },
-                { img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=800&fit=crop" },
-                { img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=800&fit=crop" },
+                { img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=800&fit=crop", text: "Create viral content instantly" },
+                { img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=800&fit=crop", text: "Brand stories that convert" },
+                { img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=800&fit=crop", text: "Aesthetic reels on demand" },
+                { img: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&h=800&fit=crop", text: "AI-powered ad generation" },
+                { img: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=800&fit=crop", text: "Scroll-stopping visuals" },
+                // Duplicate for seamless loop
+                { img: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&h=800&fit=crop", text: "Want to take stunning photos, let's..." },
+                { img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=800&fit=crop", text: "Create viral content instantly" },
+                { img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=800&fit=crop", text: "Brand stories that convert" },
+                { img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=800&fit=crop", text: "Aesthetic reels on demand" },
+                { img: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&h=800&fit=crop", text: "AI-powered ad generation" },
+                { img: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=800&fit=crop", text: "Scroll-stopping visuals" },
               ].map((card, i) => (
-                <div key={i} className="relative shrink-0 w-[240px] md:w-[280px] h-[420px] md:h-[480px] rounded-[2rem] overflow-hidden snap-center border border-white/10 shadow-2xl shadow-indigo-500/10 group cursor-pointer bg-white/5">
-                  <img 
-                    src={card.img} 
-                    alt="Vertical content preview" 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                <div
+                  key={i}
+                  className="relative shrink-0 w-[220px] md:w-[260px] h-[380px] md:h-[440px] rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl shadow-indigo-500/10 group cursor-pointer bg-white/5"
+                >
+                  <img
+                    src={card.img}
+                    alt="Vertical content preview"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
-                  {/* Glass gradient over image */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
-                  
-                  {card.text && (
-                    <div className="absolute bottom-6 left-6 right-6">
-                      <div className="bg-black/40 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 shadow-lg">
-                        <p className="text-white/90 text-sm font-medium leading-snug">{card.text}</p>
-                      </div>
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500" />
+
+                  {/* Caption pill */}
+                  <div className="absolute bottom-5 left-4 right-4">
+                    <div className="bg-black/50 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 shadow-lg">
+                      <p className="text-white/90 text-xs font-semibold leading-snug line-clamp-2">{card.text}</p>
                     </div>
-                  )}
-                  
-                  {/* Play button overlay on hover */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl scale-90 group-hover:scale-100 transition-transform duration-300">
-                      <div className="w-0 h-0 border-y-[10px] border-y-transparent border-l-[14px] border-l-white ml-1 drop-shadow-md" />
+                  </div>
+
+                  {/* Always-visible play button */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-xl group-hover:scale-110 group-hover:bg-white/25 transition-all duration-300">
+                      <div className="w-0 h-0 border-y-[9px] border-y-transparent border-l-[13px] border-l-white ml-1 drop-shadow-md" />
                     </div>
+                  </div>
+
+                  {/* IG Reel badge */}
+                  <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 text-[10px] font-black text-white/60 uppercase tracking-wider">
+                    Reel
                   </div>
                 </div>
               ))}
             </div>
           </div>
-          
+
         </div>
       </section>
 
@@ -411,6 +428,13 @@ export default function AiAdsPage() {
         @keyframes pulse {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50%       { opacity: 0.5; transform: scale(1.05); }
+        }
+        @keyframes scroll-x {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .carousel-track:hover {
+          animation-play-state: paused;
         }
       `}</style>
     </div>
