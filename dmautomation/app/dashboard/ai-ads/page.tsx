@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Zap, ImagePlus, X, Rocket, Video } from "lucide-react";
 
 /* ─── Static data ─────────────────────────────────────────────────────────── */
 
@@ -61,7 +61,147 @@ export default function DashboardAiAdsPage() {
   const [mounted, setMounted]   = useState(false);
   const textareaRef             = useRef<HTMLTextAreaElement>(null);
 
+  // New states for AI Generation
+  const [promptType, setPromptType] = useState("master");
+  const [imageUrl, setImageUrl]     = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedScript, setGeneratedScript] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Video generation states
+  const [pollUrl, setPollUrl] = useState<string | null>(null);
+  const [videoStatus, setVideoStatus] = useState<string>("");
+  const [finalVideo, setFinalVideo] = useState<string | null>(null);
+
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  const PROMPT_TYPES = [
+    { id: "master", label: "Universal Ad" },
+    { id: "image", label: "Image to Video" },
+    { id: "ecommerce", label: "E-Commerce" },
+    { id: "viral", label: "Viral Shorts" },
+    { id: "autodm", label: "Auto-DM Combo" },
+    { id: "premium", label: "Cinematic" }
+  ];
+
+  const VIDEO_MODELS = [
+    { id: "damo-vilab/text-to-video-ms-1.7b", label: "🤗 HuggingFace Text-to-Video" },
+  ];
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImageUrl(event.target?.result as string);
+      if (promptType === "master") setPromptType("image");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt && !imageUrl) return;
+    setIsGenerating(true);
+    setGeneratedScript(null);
+    setFinalVideo(null);
+    setVideoStatus("");
+    setVideoError(null);
+    try {
+      const res = await fetch("/api/ai-ads/generate-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          promptType,
+          userInput: prompt,
+          hasImage: !!imageUrl
+        })
+      });
+      const data = await res.json();
+      setGeneratedScript(data);
+      startVideoGeneration(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const startVideoGeneration = async (scriptData: any) => {
+    setVideoStatus("starting");
+    setVideoError(null);
+    try {
+      const res = await fetch("/api/ai-ads/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: imageUrl || undefined,
+          headline: scriptData.hook?.substring(0, 80) || "Amazing Video"
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      // Non-2xx — backend returned an error message
+      if (!res.ok) {
+        const msg = data?.message || `Server error ${res.status}`;
+        console.error("[Video Gen] Backend error:", msg);
+        setVideoError(msg);
+        setVideoStatus("failed");
+        return;
+      }
+
+      if (data.status === "done" && data.resultUrl) {
+         setVideoStatus("done");
+         setFinalVideo(data.resultUrl);
+         setPollUrl(null);
+      } else if (data.pollUrl) {
+         setPollUrl(data.pollUrl);
+         setVideoStatus("processing");
+      } else if (data.status === "failed") {
+         setVideoError(data.message || "Video generation failed.");
+         setVideoStatus("failed");
+      } else {
+         const msg = data?.message || "Unexpected response from server.";
+         console.error("[Video Gen] Unknown response:", data);
+         setVideoError(msg);
+         setVideoStatus("failed");
+      }
+    } catch (err: any) {
+      console.error("Video Gen Error", err);
+      setVideoError(err.message || "Network error.");
+      setVideoStatus("failed");
+    }
+  };
+
   useEffect(() => { setMounted(true); }, []);
+
+  // Poll for video completion
+  useEffect(() => {
+    if (!pollUrl) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(pollUrl);
+        const data = await res.json();
+        
+        if (data.status === "done") {
+          setVideoStatus("done");
+          setFinalVideo(data.resultUrl);
+          setPollUrl(null);
+          clearInterval(interval);
+        } else if (data.status === "failed") {
+          setVideoStatus("failed");
+          setPollUrl(null);
+          clearInterval(interval);
+        } else {
+          setVideoStatus("processing");
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [pollUrl]);
 
   // Cycle suggestion every 2.5 s
   useEffect(() => {
@@ -115,30 +255,75 @@ export default function DashboardAiAdsPage() {
         </p>
 
         {/* ── Input card ── */}
-        <div className="w-full max-w-2xl group">
+        <div className="w-full max-w-3xl group">
+          
+          {/* Prompt Type Selector */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-6" style={{ perspective: "1000px" }}>
+            {PROMPT_TYPES.map(pt => (
+              <button
+                key={pt.id}
+                onClick={() => setPromptType(pt.id)}
+                className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 ${promptType === pt.id ? 'bg-violet-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.6)] scale-105 border-transparent' : 'bg-white/5 text-white/50 hover:text-white/90 hover:bg-white/10 border border-white/10'}`}
+              >
+                {pt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className="text-white/60 text-xs font-bold uppercase tracking-wider py-2 pr-2 border-r border-white/20">Video Engine</span>
+            <span className="px-4 py-2 rounded-full text-xs font-bold tracking-wider bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+              🤗 HuggingFace Text-to-Video
+            </span>
+          </div>
+
           {/* card */}
           <div
             className="relative rounded-[1.4rem] p-[1.5px] transition-all duration-500"
             style={{ background: "linear-gradient(135deg,rgba(139,92,246,0.5),rgba(99,102,241,0.2),rgba(139,92,246,0.5))" }}
           >
-            <div className="rounded-[1.35rem] overflow-hidden" style={{ background: "linear-gradient(160deg,rgba(20,12,40,0.95),rgba(12,8,28,0.98))", backdropFilter: "blur(24px)" }}>
+            <div className="rounded-[1.35rem] overflow-hidden flex flex-col pt-2" style={{ background: "linear-gradient(160deg,rgba(20,12,40,0.95),rgba(12,8,28,0.98))", backdropFilter: "blur(24px)" }}>
+              
+              {imageUrl && (
+                <div className="px-6 pt-4 pb-2 relative group w-max">
+                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-white/20">
+                    <img src={imageUrl} alt="upload preview" className="w-full h-full object-cover" />
+                    <button onClick={() => setImageUrl("")} className="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white/80 hover:text-white hover:bg-black/90">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* textarea */}
               <textarea
                 ref={textareaRef}
                 rows={3}
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="Describe a topic or paste a script…"
-                className="w-full bg-transparent text-white placeholder:text-white/25 px-6 pt-5 pb-3 outline-none text-[15px] font-medium resize-none leading-relaxed"
+                placeholder={promptType === "image" ? "Describe the product image and any specific details to highlight..." : "Describe a topic or paste a script…"}
+                className="w-full bg-transparent text-white placeholder:text-white/25 px-6 pt-4 pb-3 outline-none text-[15px] font-medium resize-none leading-relaxed"
               />
 
-              {/* divider */}
-              <div className="mx-5 h-px" style={{ background: "linear-gradient(90deg,transparent,rgba(139,92,246,0.3),transparent)" }} />
-
               {/* action bar */}
-              <div className="flex items-center gap-3 px-5 py-3.5 flex-wrap">
+              <div className="flex items-center gap-3 px-5 py-3.5 flex-wrap border-t border-white/10 bg-black/20">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-violet-400 transition-colors"
+                  title="Upload image"
+                >
+                  <ImagePlus className="w-5 h-5" />
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
                 {/* Try suggestion */}
-                <div className="flex items-center gap-0.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5">
+                <div className="flex items-center gap-0.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 ml-2">
                   <button onClick={prev} className="p-1 text-white/30 hover:text-violet-400 transition-colors" aria-label="prev">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
@@ -150,27 +335,148 @@ export default function DashboardAiAdsPage() {
                   </button>
                 </div>
 
-                {/* dots indicator */}
-                <div className="flex gap-1">
-                  {TRY_SUGGESTIONS.map((_, i) => (
-                    <span key={i} className="block rounded-full transition-all duration-300" style={{ width: i === tryIdx ? 16 : 5, height: 5, background: i === tryIdx ? "rgba(139,92,246,0.9)" : "rgba(255,255,255,0.15)" }} />
-                  ))}
-                </div>
-
                 <div className="flex-1" />
 
-                <span className="text-xs font-semibold text-white/30 tracking-widest uppercase">Auto</span>
-
                 {/* CTA */}
-                <button className="group/btn flex items-center gap-2 text-sm font-black text-black px-5 py-2.5 rounded-full transition-all duration-200 hover:scale-[1.04] active:scale-95" style={{ background: "linear-gradient(120deg,#b8ff3c,#aaff00)", boxShadow: "0 0 24px rgba(170,255,0,0.4),inset 0 1px 0 rgba(255,255,255,0.3)" }}>
-                  <Sparkles className="w-4 h-4 fill-black/70" />
-                  Make with AI
-                  <span className="group-hover/btn:translate-x-0.5 transition-transform">→</span>
+                <button 
+                  onClick={handleGenerate}
+                  disabled={isGenerating || (!prompt && !imageUrl)}
+                  className="group/btn flex items-center gap-2 text-sm font-black text-black px-5 py-2.5 rounded-full transition-all duration-200 hover:scale-[1.04] active:scale-95 disabled:opacity-50 disabled:pointer-events-none" 
+                  style={{ background: "linear-gradient(120deg,#b8ff3c,#aaff00)", boxShadow: "0 0 24px rgba(170,255,0,0.4),inset 0 1px 0 rgba(255,255,255,0.3)" }}
+                >
+                  {isGenerating ? (
+                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 fill-black/70" />
+                  )}
+                  {isGenerating ? "Generating..." : "Make with AI"}
+                  {!isGenerating && <span className="group-hover/btn:translate-x-0.5 transition-transform">→</span>}
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* ── Generated Result Overview ── */}
+        {generatedScript && (
+          <div className="w-full max-w-3xl mt-10 rounded-3xl bg-[#0c0617] border border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.1)] overflow-hidden text-left relative text-white animate-in slide-in-from-bottom-5 fade-in duration-500">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-500 via-pink-500 to-amber-500" />
+            <div className="p-8 space-y-8">
+              <div className="flex justify-between items-start border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-2xl font-black text-white/95 tracking-tight flex items-center gap-2">
+                    <Rocket className="w-6 h-6 text-violet-400" /> AI Script Ready
+                  </h3>
+                  <p className="text-sm text-white/50 mt-1">Review your generated scenes and script before finalizing.</p>
+                </div>
+                <button onClick={() => setGeneratedScript(null)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/60">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {generatedScript.hook && (
+                <div className="bg-violet-900/20 p-5 rounded-2xl border border-violet-500/10">
+                  <div className="text-xs font-black uppercase text-violet-400 tracking-wider mb-2">🔥 The Hook</div>
+                  <p className="text-lg font-medium leading-relaxed italic text-white/90">"{generatedScript.hook}"</p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="text-xs font-black uppercase text-white/40 tracking-wider">Scenes Breakdown</div>
+                {generatedScript.scenes?.map((scene: any, idx: number) => (
+                  <div key={idx} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-violet-500/30 transition-all">
+                    <div className="w-8 h-8 rounded-full bg-violet-600/30 flex items-center justify-center font-bold text-violet-300 shrink-0 text-sm">
+                      {scene.sceneNumber || idx + 1}
+                    </div>
+                    <div className="space-y-2 text-sm flex-1">
+                      <p><span className="text-white/40 font-semibold w-20 inline-block">Visuals:</span> <span className="text-white/90">{scene.visuals}</span></p>
+                      {scene.onScreenText && <p><span className="text-white/40 font-semibold w-20 inline-block">Caption:</span> <span className="text-blue-300">"{scene.onScreenText}"</span></p>}
+                      {scene.voiceover && <p><span className="text-white/40 font-semibold w-20 inline-block">Voice:</span> <span className="text-emerald-300 italic">"{scene.voiceover}"</span></p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {generatedScript.dmAutomation && (
+                <div className="bg-amber-900/20 p-5 rounded-2xl border border-amber-500/20">
+                  <div className="text-xs font-black uppercase text-amber-500 tracking-wider mb-2">🤖 DM Automation Flow</div>
+                  <p className="text-sm leading-relaxed text-amber-100/80">{generatedScript.dmAutomation}</p>
+                </div>
+              )}
+
+              <div className="bg-black/40 p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-white/5">
+                <div>
+                  <div className="text-xs font-black uppercase text-white/40 mb-1">Visual Style</div>
+                  <div className="text-sm font-medium text-white/80">{generatedScript.visualStyle || "Cinematic"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase text-white/40 mb-1">CTA</div>
+                  <div className="text-sm font-bold text-pink-400">{generatedScript.cta || "Shop Now"}</div>
+                </div>
+              </div>
+
+              {/* Video Generation UI */}
+              <div className="border-t border-white/10 pt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Video className="w-5 h-5 text-violet-400" />
+                  <h4 className="text-lg font-bold text-white/90">AI Video Generation</h4>
+                </div>
+                
+                {videoStatus === "starting" || videoStatus === "processing" ? (
+                  <div className="flex flex-col items-center justify-center p-8 bg-black/30 rounded-2xl border border-white/5 border-dashed">
+                    <div className="w-8 h-8 border-4 border-violet-500/30 border-t-violet-400 rounded-full animate-spin mb-4" />
+                    <p className="text-sm font-medium text-white/60 animate-pulse">
+                      Generating video with HuggingFace AI... this may take 2–5 mins on first run.
+                    </p>
+                  </div>
+                ) : finalVideo ? (
+                  <div className="bg-black/40 p-2 rounded-2xl border border-white/10 shadow-xl overflow-hidden max-w-sm mx-auto relative group">
+                    <div className="relative rounded-xl overflow-hidden">
+                      <video 
+                        src={finalVideo} 
+                        controls 
+                        autoPlay 
+                        loop
+                        className="w-full h-auto object-contain drop-shadow-2xl" 
+                      />
+                      {/* CSS Overlay for Headline since FFmpeg drawtext is OS-dependent */}
+                      <div className="absolute bottom-14 left-0 right-0 pointer-events-none flex justify-center w-full px-4">
+                        <div className="bg-black/60 backdrop-blur-md border-[2px] border-black px-4 py-2" style={{ textShadow: "0px 2px 4px rgba(0,0,0,0.8)" }}>
+                           <p className="text-white font-black text-xl md:text-2xl text-center leading-tight tracking-tight uppercase uppercase">
+                              {generatedScript?.hook?.substring(0, 30) || "Amazing Video"}
+                           </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full flex justify-center mt-3 mb-1">
+                       <a href={finalVideo} download="ad_video.mp4" className="text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-full transition-colors flex items-center gap-1">
+                         <Video className="w-3 h-3" /> Download Source Video
+                       </a>
+                    </div>
+                  </div>
+                ) : videoStatus === "failed" ? (
+                  <div className="bg-red-500/10 p-5 rounded-xl border border-red-500/30 text-center space-y-3">
+                    <p className="text-sm font-bold text-red-400">⚠️ Video Generation Failed</p>
+                    {videoError && (
+                      <p className="text-xs text-red-300/80 font-mono bg-red-950/40 px-3 py-2 rounded-lg text-left break-all">{videoError}</p>
+                    )}
+                    {videoError?.includes("HUGGINGFACE_API_KEY") && (
+                      <a 
+                        href="https://huggingface.co/settings/tokens" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-block text-xs font-bold bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-full transition-colors"
+                      >
+                        🤗 Get Free API Key →
+                      </a>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* ── Video type cards ── */}
         <div className="mt-12 flex gap-4 w-full max-w-5xl overflow-x-auto pb-2 scrollbar-hide justify-center">
