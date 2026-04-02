@@ -21,6 +21,8 @@ import {
   Zap,
   Shield,
   TrendingUp,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,11 +41,18 @@ interface MediaItem {
 }
 
 const PERKS = [
-  { icon: Film,       gradient: "from-pink-500 to-rose-600",     glow: "shadow-pink-500/30",    border: "border-pink-500/20",    bg: "bg-pink-500/8",    text: "text-pink-300",    label: "View All Reels",    desc: "See every reel you've posted, right here." },
-  { icon: Zap,        gradient: "from-violet-500 to-indigo-600", glow: "shadow-violet-500/30",  border: "border-violet-500/20",  bg: "bg-violet-500/8",  text: "text-violet-300",  label: "AI DM Automation", desc: "Auto-reply to comments with smart messages." },
-  { icon: TrendingUp, gradient: "from-blue-500 to-cyan-500",     glow: "shadow-blue-500/30",    border: "border-blue-500/20",    bg: "bg-blue-500/8",    text: "text-blue-300",    label: "Analytics",        desc: "Track DM volume, engagement and growth." },
-  { icon: Shield,     gradient: "from-emerald-500 to-teal-500", glow: "shadow-emerald-500/30", border: "border-emerald-500/20", bg: "bg-emerald-500/8", text: "text-emerald-300", label: "Secure & Private",  desc: "OAuth only — we never see your password." },
+  { icon: Film,       color: "pink",    label: "View All Reels",    desc: "See every reel you've posted, in one place." },
+  { icon: Zap,        color: "violet",  label: "AI DM Automation",  desc: "Auto-reply to comments with smart, personalised messages." },
+  { icon: TrendingUp, color: "blue",    label: "Analytics",         desc: "Track DM volume, engagement rates and growth." },
+  { icon: Shield,     color: "emerald", label: "Secure & Private",  desc: "OAuth login — we never see your password." },
 ];
+
+const PERK_COLOR: Record<string, string> = {
+  pink:    "text-pink-400 bg-pink-400/10 border-pink-400/20",
+  violet:  "text-violet-400 bg-violet-400/10 border-violet-400/20",
+  blue:    "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  emerald: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+};
 
 function timeAgo(iso: string) {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -132,6 +141,13 @@ export default function InstagramIntegrationPage() {
   const [filter, setFilter]           = useState<"ALL" | "VIDEO" | "IMAGE">("ALL");
   const [oauthError, setOauthError]   = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Manual token fallback
+  const [showTokenFallback, setShowTokenFallback] = useState(false);
+  const [manualToken, setManualToken] = useState("");
+  const [showToken, setShowToken]     = useState(false);
+  const [tokenConnecting, setTokenConnecting] = useState(false);
+  const [tokenError, setTokenError]   = useState("");
 
   // ── Load media ─────────────────────────────────────────────────────────────
   const loadMedia = useCallback(async () => {
@@ -339,150 +355,192 @@ export default function InstagramIntegrationPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // NOT CONNECTED — Premium "Login with Instagram" screen
+  // NOT CONNECTED — clean "Login with Instagram" screen
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen text-white flex items-center justify-center p-6 relative overflow-hidden"
-      style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,54,255,0.28) 0%, rgba(139,92,246,0.10) 40%, #06040f 70%)" }}>
-
-      {/* Deep space star-field ambient layers */}
-      <div className="fixed inset-0 pointer-events-none">
-        {/* Top center purple-indigo glow */}
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[520px] bg-gradient-to-b from-violet-700/35 via-indigo-700/20 to-transparent rounded-full blur-[120px]" />
-        {/* Bottom-left accent */}
-        <div className="absolute bottom-0 left-0 w-[500px] h-[400px] bg-indigo-900/20 rounded-full blur-[100px]" />
-        {/* Bottom-right warm accent */}
-        <div className="absolute bottom-0 right-0 w-[400px] h-[350px] bg-purple-900/15 rounded-full blur-[90px]" />
-        {/* Subtle pink for the IG brand */}
-        <div className="absolute top-1/3 right-[5%] w-[300px] h-[300px] bg-pink-900/10 rounded-full blur-[80px]" />
+    <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center p-6">
+      {/* Ambient side glows matching the screenshot */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-pink-600/8 rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-5%] left-[-5%] w-[400px] h-[500px] bg-purple-900/20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[400px] h-[500px] bg-pink-900/15 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-lg">
 
-        {/* Error */}
+        {/* OAuth error */}
         <AnimatePresence>
           {oauthError && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="mb-5 flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/25 rounded-2xl text-[13px] text-red-400 backdrop-blur-sm">
+              className="mb-6 flex items-center gap-3 p-4 bg-red-500/8 border border-red-500/20 rounded-2xl text-[13px] text-red-400">
               <AlertCircle className="w-4 h-4 shrink-0" />{oauthError}
             </motion.div>
           )}
         </AnimatePresence>
 
         <motion.div
-          initial={{ opacity: 0, y: 32, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ type: "spring", stiffness: 220, damping: 26 }}
-          className="relative"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 22 }}
         >
-          {/* Outer glow ring */}
-          <div className="absolute -inset-px rounded-[28px] bg-gradient-to-br from-violet-500/40 via-indigo-500/20 to-pink-500/20 blur-[2px]" />
-          <div className="absolute -inset-4 rounded-[36px] bg-gradient-to-br from-violet-600/15 via-transparent to-pink-600/10 blur-3xl" />
+          <div className="relative bg-[#0e0e0e] border border-white/[0.06] rounded-3xl overflow-hidden shadow-2xl">
 
-          {/* Card */}
-          <div className="relative rounded-[26px] overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/60"
-            style={{ background: "rgba(12, 8, 28, 0.85)", backdropFilter: "blur(24px)" }}>
+            {/* ── Instagram gradient header ── */}
+            <div className="relative h-48 bg-gradient-to-br from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888] flex flex-col items-center justify-center gap-3 overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,255,255,0.18),transparent_60%)]" />
 
-            {/* ── Glassmorphism Header ── */}
-            <div className="relative overflow-hidden">
-              {/* Background gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888]" />
-              {/* Frosted glass overlay */}
-              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.12)", backdropFilter: "blur(0px)" }} />
-              {/* Radial light burst */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.25),transparent_65%)]" />
-              {/* Noise texture shimmer */}
-              <div className="absolute inset-0 opacity-20 mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iNCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIxIi8+PC9zdmc+')]" />
+              {/* Frosted glass Instagram icon tile */}
+              <motion.div
+                animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
+                transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
+                className="relative z-10 w-[72px] h-[72px] rounded-[20px] flex items-center justify-center shadow-2xl"
+                style={{
+                  background: "rgba(255,255,255,0.22)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.35)",
+                }}
+              >
+                <Instagram className="w-8 h-8 text-white drop-shadow-md" />
+              </motion.div>
 
-              <div className="relative z-10 flex flex-col items-center justify-center gap-4 py-10 px-6">
-                {/* Frosted glass tile */}
-                <motion.div
-                  animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
-                  transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
-                  className="relative"
-                >
-                  {/* Icon glow */}
-                  <div className="absolute inset-0 rounded-[22px] bg-white/20 blur-lg" />
-                  <div
-                    className="relative w-20 h-20 rounded-[22px] flex items-center justify-center shadow-2xl"
-                    style={{
-                      background: "rgba(255,255,255,0.18)",
-                      backdropFilter: "blur(16px) saturate(180%)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.4)",
-                    }}
-                  >
-                    <Instagram className="w-9 h-9 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" />
-                  </div>
-                </motion.div>
-
-                <div className="text-center">
-                  <p className="text-white font-black text-[15px] tracking-wide drop-shadow-md">Instagram Integration</p>
-                  <p className="text-white/60 text-[12px] mt-0.5 font-medium">Connect once. Automate forever.</p>
-                </div>
-              </div>
-
-              {/* Bottom fade into card */}
-              <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#0c081c]/70 to-transparent" />
+              <p className="relative z-10 text-white/75 text-[13px] font-semibold tracking-wide">
+                Instagram Integration
+              </p>
             </div>
 
             {/* ── Body ── */}
-            <div className="px-7 pt-6 pb-7">
-              <div className="text-center mb-6">
-                <h1 className="text-[22px] font-black text-white tracking-tight leading-tight mb-2">
+            <div className="px-8 py-8">
+              <div className="text-center mb-7">
+                <h1 className="text-[26px] font-black text-white tracking-tight mb-2">
                   Connect Your Account
                 </h1>
-                <p className="text-[#6b6b8a] text-[13px] leading-relaxed">
-                  One click to securely sign in with Instagram.<br />No passwords. No manual tokens.
+                <p className="text-[#555] text-[13.5px] leading-relaxed">
+                  Click below to securely log in with Instagram.<br />
+                  No passwords, no tokens — just one click.
                 </p>
               </div>
 
-              {/* ── Color-coded feature cards ── */}
-              <div className="grid grid-cols-2 gap-2.5 mb-6">
-                {PERKS.map(({ icon: Icon, gradient, glow, border, bg, text, label, desc }, i) => (
+              {/* Feature cards */}
+              <div className="grid grid-cols-2 gap-3 mb-7">
+                {PERKS.map(({ icon: Icon, color, label, desc }, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 + i * 0.07 }}
-                    className={`relative rounded-2xl p-4 border ${border} ${bg} overflow-hidden group hover:scale-[1.02] transition-transform duration-200`}
-                    style={{ backdropFilter: "blur(8px)" }}
+                    transition={{ delay: 0.08 + i * 0.06 }}
+                    className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 hover:border-white/10 transition-colors"
                   >
-                    {/* Subtle inner glow on hover */}
-                    <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${gradient} opacity-[0.07]`} />
-                    {/* Icon with gradient bg */}
-                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center mb-3 shadow-lg ${glow} bg-gradient-to-br ${gradient}`}>
-                      <Icon className="w-4.5 h-4.5 text-white" />
+                    <div className={`w-9 h-9 rounded-xl border flex items-center justify-center mb-3 ${PERK_COLOR[color]}`}>
+                      <Icon className="w-4 h-4" />
                     </div>
-                    <p className={`text-[12.5px] font-black mb-0.5 ${text}`}>{label}</p>
-                    <p className="text-[11px] text-[#4a4a6a] leading-snug">{desc}</p>
+                    <p className="text-[13px] font-bold text-white mb-0.5">{label}</p>
+                    <p className="text-[11.5px] text-[#444] leading-snug">{desc}</p>
                   </motion.div>
                 ))}
               </div>
 
-              {/* ── CTA Button ── */}
-              <motion.a
+              {/* Login button */}
+              <a
                 href="/api/auth/instagram/authorize"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                className="group relative flex items-center justify-center gap-3 w-full py-[15px] rounded-2xl font-black text-[15px] text-white overflow-hidden"
-                style={{ boxShadow: "0 4px 32px rgba(220,39,67,0.4), 0 0 0 1px rgba(255,255,255,0.1)" }}
+                className="group relative flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-[16px] text-white overflow-hidden shadow-xl shadow-pink-900/25 transition-all active:scale-[0.98] hover:shadow-pink-900/40"
               >
-                {/* Full Instagram gradient */}
                 <span className="absolute inset-0 bg-gradient-to-r from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888]" />
-                {/* Shimmer sweep */}
-                <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-700 bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.18)_50%,transparent_70%)] bg-[size:200%] bg-[position:-100%] group-hover:bg-[position:200%]" />
-                {/* Top shine */}
-                <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.18),transparent_70%)]" />
+                <Instagram className="w-5 h-5 relative z-10" />
+                <span className="relative z-10">Login with Instagram</span>
+                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+              </a>
 
-                <Instagram className="w-5 h-5 relative z-10 drop-shadow-sm" />
-                <span className="relative z-10 tracking-wide">Login with Instagram</span>
-                <ArrowRight className="w-4.5 h-4.5 relative z-10 group-hover:translate-x-1 transition-transform duration-200" />
-              </motion.a>
+              {/* ── Manual token fallback ── */}
+              <div className="mt-4">
+                <button
+                  onClick={() => { setShowTokenFallback(v => !v); setTokenError(""); }}
+                  className="w-full text-center text-[12px] text-[#333] hover:text-[#666] transition-colors py-1"
+                >
+                  {showTokenFallback ? "▲ Hide" : "▼ Having trouble? Paste a token manually"}
+                </button>
 
-              <p className="text-center text-[11px] text-[#38385a] mt-4 leading-relaxed">
-                By connecting, you agree to Instagram&apos;s Terms of Service.
-                We request <span className="text-[#55557a] font-semibold">read-only</span> access to your media.
+                <AnimatePresence>
+                  {showTokenFallback && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 p-4 bg-white/[0.03] border border-white/[0.07] rounded-2xl space-y-3">
+                        <p className="text-[11px] text-[#444] leading-relaxed">
+                          Generate a token from{" "}
+                          <a
+                            href="https://developers.facebook.com/apps/1655725885687741/instagram-basic-display/basic-display/"
+                            target="_blank" rel="noopener noreferrer"
+                            className="text-violet-400 hover:underline"
+                          >
+                            Meta App → Instagram Basic Display → User Token Generator
+                          </a>
+                          {" "}and paste it below.
+                        </p>
+
+                        <div className="relative">
+                          <textarea
+                            rows={3}
+                            value={manualToken}
+                            onChange={e => setManualToken(e.target.value)}
+                            placeholder="Paste your access token here…"
+                            className="w-full bg-[#0d0d0d] border border-[#1d1d1d] rounded-xl px-4 py-3 text-[13px] text-white font-mono placeholder:text-[#2a2a2a] focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/15 transition-all resize-none"
+                            style={{ WebkitTextSecurity: showToken ? "none" : "disc" } as React.CSSProperties}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowToken(v => !v)}
+                            className="absolute top-2.5 right-3 text-[11px] text-[#444] hover:text-[#888] transition-colors"
+                          >
+                            {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        {tokenError && (
+                          <div className="flex items-center gap-2 text-[12px] text-red-400">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />{tokenError}
+                          </div>
+                        )}
+
+                        <button
+                          disabled={!manualToken.trim() || tokenConnecting}
+                          onClick={async () => {
+                            setTokenConnecting(true);
+                            setTokenError("");
+                            try {
+                              const res = await fetch("/api/instagram/connect", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ token: manualToken }),
+                              });
+                              const data = await res.json();
+                              if (!res.ok) { setTokenError(data.message || "Invalid token"); return; }
+                              setIgAccountId(data.accountId);
+                              setIgUsername(data.username || "");
+                              setConnectionStatus("connected");
+                              loadMedia();
+                            } catch { setTokenError("Unexpected error. Try again."); }
+                            finally { setTokenConnecting(false); }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {tokenConnecting
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</>
+                            : <><Zap className="w-4 h-4" /> Connect with Token</>}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <p className="text-center text-[11px] text-[#333] mt-3 leading-relaxed">
+                By connecting, you agree to Instagram&apos;s Terms of Service. We request{" "}
+                <span className="text-[#555] font-semibold">read-only</span> access to your profile and media.
               </p>
             </div>
           </div>
