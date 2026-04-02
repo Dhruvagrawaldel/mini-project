@@ -74,6 +74,9 @@ export default function DashboardAiAdsPage() {
   const [finalVideo, setFinalVideo] = useState<string | null>(null);
 
   const [videoError, setVideoError] = useState<string | null>(null);
+  const pollRetries  = useRef(0);
+  const retryTimer   = useRef<NodeJS.Timeout | null>(null);
+  const [retryCountdown, setRetryCountdown] = useState(0);
 
   const PROMPT_TYPES = [
     { id: "master", label: "Universal Ad" },
@@ -84,9 +87,6 @@ export default function DashboardAiAdsPage() {
     { id: "premium", label: "Cinematic" }
   ];
 
-  const VIDEO_MODELS = [
-    { id: "damo-vilab/text-to-video-ms-1.7b", label: "🤗 HuggingFace Text-to-Video" },
-  ];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,6 +106,8 @@ export default function DashboardAiAdsPage() {
     setFinalVideo(null);
     setVideoStatus("");
     setVideoError(null);
+    setPollUrl(null);
+    pollRetries.current = 0;
     try {
       const res = await fetch("/api/ai-ads/generate-script", {
         method: "POST",
@@ -129,6 +131,8 @@ export default function DashboardAiAdsPage() {
   const startVideoGeneration = async (scriptData: any) => {
     setVideoStatus("starting");
     setVideoError(null);
+    setRetryCountdown(0);
+    if (retryTimer.current) clearInterval(retryTimer.current);
     try {
       const res = await fetch("/api/ai-ads/generate-video", {
         method: "POST",
@@ -140,7 +144,26 @@ export default function DashboardAiAdsPage() {
       });
       const data = await res.json().catch(() => ({}));
 
-      // Non-2xx — backend returned an error message
+      // 429 Rate Limited — auto-retry after countdown
+      if (res.status === 429 && data.status === "rate_limited") {
+        const secs = data.retryAfter ?? 15;
+        console.warn(`[Video Gen] Rate limited — retrying in ${secs}s`);
+        setVideoStatus("rate_limited");
+        setRetryCountdown(secs);
+        let remaining = secs;
+        retryTimer.current = setInterval(() => {
+          remaining -= 1;
+          setRetryCountdown(remaining);
+          if (remaining <= 0) {
+            clearInterval(retryTimer.current!);
+            retryTimer.current = null;
+            startVideoGeneration(scriptData); // auto-retry
+          }
+        }, 1000);
+        return;
+      }
+
+      // Other non-2xx errors
       if (!res.ok) {
         const msg = data?.message || `Server error ${res.status}`;
         console.error("[Video Gen] Backend error:", msg);
@@ -155,6 +178,7 @@ export default function DashboardAiAdsPage() {
          setPollUrl(null);
       } else if (data.pollUrl) {
          setPollUrl(data.pollUrl);
+         pollRetries.current = 0;
          setVideoStatus("processing");
       } else if (data.status === "failed") {
          setVideoError(data.message || "Video generation failed.");
@@ -174,31 +198,53 @@ export default function DashboardAiAdsPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Poll for video completion
+  // Poll for video completion — every 3 sec, max 60 polls (3 minutes)
   useEffect(() => {
     if (!pollUrl) return;
 
+    const MAX_RETRIES = 200; // 200 × 3s = 10 minutes hard stop
+
     const interval = setInterval(async () => {
+      // Safety stop — never spam Replicate forever
+      if (pollRetries.current >= MAX_RETRIES) {
+        console.warn(`[Polling] ❌ Max retries (${MAX_RETRIES}) reached — stopping poll`);
+        setVideoStatus("failed");
+        setVideoError("Video generation timed out after 10 minutes. Please try again.");
+        setPollUrl(null);
+        clearInterval(interval);
+        return;
+      }
+
+      pollRetries.current += 1;
+
       try {
         const res = await fetch(pollUrl);
         const data = await res.json();
-        
-        if (data.status === "done") {
+
+        console.log(`[Polling] Attempt ${pollRetries.current}/${MAX_RETRIES} — status: ${data.status}`);
+
+        // Accept both 'done' and 'succeeded' (Replicate uses 'done' via DB)
+        if (data.status === "done" || data.status === "succeeded") {
+          console.log("[Polling] ✅ Video ready:", data.resultUrl);
           setVideoStatus("done");
           setFinalVideo(data.resultUrl);
           setPollUrl(null);
           clearInterval(interval);
         } else if (data.status === "failed") {
+          console.warn("[Polling] ❌ Job failed");
           setVideoStatus("failed");
+          setVideoError(data.message || "Video generation failed on the server.");
           setPollUrl(null);
           clearInterval(interval);
         } else {
+          // Still processing — update status label, continue polling
           setVideoStatus("processing");
         }
       } catch (err) {
-        console.error("Polling error", err);
+        console.error("[Polling] Network error:", err);
+        // Don't stop on transient errors, just keep retrying
       }
-    }, 2000);
+    }, 3000); // every 3 seconds
 
     return () => clearInterval(interval);
   }, [pollUrl]);
@@ -272,8 +318,8 @@ export default function DashboardAiAdsPage() {
 
           <div className="flex flex-wrap gap-2 mb-6">
             <span className="text-white/60 text-xs font-bold uppercase tracking-wider py-2 pr-2 border-r border-white/20">Video Engine</span>
-            <span className="px-4 py-2 rounded-full text-xs font-bold tracking-wider bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)]">
-              🤗 HuggingFace Text-to-Video
+            <span className="px-4 py-2 rounded-full text-xs font-bold tracking-wider bg-violet-700 text-white shadow-[0_0_20px_rgba(109,40,217,0.5)]">
+              ▲ Replicate AI (Wan-2.1 480p)
             </span>
           </div>
 
@@ -426,10 +472,32 @@ export default function DashboardAiAdsPage() {
                   <div className="flex flex-col items-center justify-center p-8 bg-black/30 rounded-2xl border border-white/5 border-dashed">
                     <div className="w-8 h-8 border-4 border-violet-500/30 border-t-violet-400 rounded-full animate-spin mb-4" />
                     <p className="text-sm font-medium text-white/60 animate-pulse">
-                      Generating video with HuggingFace AI... this may take 2–5 mins on first run.
+                      Generating video with Replicate AI (MiniMax)&hellip; this may take 2&ndash;5 minutes.
                     </p>
+                    <p className="text-xs text-white/30 mt-2">Polling every 3 sec &bull; auto-stops when ready</p>
+                  </div>
+                ) : videoStatus === "rate_limited" ? (
+                  <div className="flex flex-col items-center justify-center p-8 bg-amber-950/30 rounded-2xl border border-amber-500/20 text-center">
+                    {/* Countdown ring */}
+                    <div className="relative w-16 h-16 mb-4">
+                      <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                        <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(245,158,11,0.2)" strokeWidth="4" />
+                        <circle
+                          cx="32" cy="32" r="28" fill="none"
+                          stroke="rgb(245,158,11)" strokeWidth="4"
+                          strokeDasharray={`${2 * Math.PI * 28}`}
+                          strokeDashoffset={`${2 * Math.PI * 28 * (retryCountdown / 20)}`}
+                          strokeLinecap="round"
+                          style={{ transition: "stroke-dashoffset 1s linear" }}
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-amber-400 font-black text-lg">{retryCountdown}</span>
+                    </div>
+                    <p className="text-sm font-bold text-amber-400">Rate limit — auto-retrying&hellip;</p>
+                    <p className="text-xs text-amber-300/60 mt-1">Replicate free tier: 1 request/min &bull; retrying in {retryCountdown}s</p>
                   </div>
                 ) : finalVideo ? (
+
                   <div className="bg-black/40 p-2 rounded-2xl border border-white/10 shadow-xl overflow-hidden max-w-sm mx-auto relative group">
                     <div className="relative rounded-xl overflow-hidden">
                       <video 
@@ -460,16 +528,22 @@ export default function DashboardAiAdsPage() {
                     {videoError && (
                       <p className="text-xs text-red-300/80 font-mono bg-red-950/40 px-3 py-2 rounded-lg text-left break-all">{videoError}</p>
                     )}
-                    {videoError?.includes("HUGGINGFACE_API_KEY") && (
-                      <a 
-                        href="https://huggingface.co/settings/tokens" 
-                        target="_blank" 
+                    {videoError?.includes("REPLICATE_API_TOKEN") && (
+                      <a
+                        href="https://replicate.com/account/api-tokens"
+                        target="_blank"
                         rel="noreferrer"
-                        className="inline-block text-xs font-bold bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-full transition-colors"
+                        className="inline-block text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-full transition-colors"
                       >
-                        🤗 Get Free API Key →
+                        ▲ Get Replicate API Token →
                       </a>
                     )}
+                    <button
+                      onClick={() => startVideoGeneration(generatedScript)}
+                      className="inline-block text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition-colors ml-2"
+                    >
+                      🔄 Retry
+                    </button>
                   </div>
                 ) : null}
               </div>

@@ -1,435 +1,492 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Instagram,
-  Shield,
   CheckCircle2,
   ExternalLink,
   AlertCircle,
   Loader2,
   RefreshCw,
-  Copy,
-  Eye,
-  EyeOff,
-  Zap,
+  Play,
+  Heart,
+  MessageSquare,
+  Film,
+  ImageIcon,
+  LayoutGrid,
+  LogOut,
+  User,
   ArrowRight,
-  MessageCircle,
-  Hash,
+  Zap,
+  Shield,
   TrendingUp,
-  Globe,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const STEPS = [
-  {
-    num: "01",
-    title: "Create a Meta App",
-    desc: "Set up a developer app in the Meta Developers Console.",
-    link: "https://developers.facebook.com/",
-    linkLabel: "Open Console",
-  },
-  {
-    num: "02",
-    title: "Link Instagram Business Account",
-    desc: "Under the app settings, add your Instagram Business profile.",
-    link: null,
-    linkLabel: null,
-  },
-  {
-    num: "03",
-    title: "Generate a Long-Lived Token",
-    desc: "Use the Access Token Debugger to exchange for a 60-day token.",
-    link: "https://developers.facebook.com/tools/debug/accesstoken/",
-    linkLabel: "Token Debugger",
-  },
-  {
-    num: "04",
-    title: "Register the Webhook",
-    desc: "Point the Instagram webhook to your endpoint below and subscribe to 'comments'.",
-    link: null,
-    linkLabel: null,
-  },
+// ─── Types ─────────────────────────────────────────────────────────────────────
+interface MediaItem {
+  id: string;
+  caption: string;
+  type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
+  url: string;
+  videoUrl: string | null;
+  timestamp: string;
+  permalink: string;
+  likes: number;
+  comments: number;
+}
+
+const PERKS = [
+  { icon: Film,       gradient: "from-pink-500 to-rose-600",     glow: "shadow-pink-500/30",    border: "border-pink-500/20",    bg: "bg-pink-500/8",    text: "text-pink-300",    label: "View All Reels",    desc: "See every reel you've posted, right here." },
+  { icon: Zap,        gradient: "from-violet-500 to-indigo-600", glow: "shadow-violet-500/30",  border: "border-violet-500/20",  bg: "bg-violet-500/8",  text: "text-violet-300",  label: "AI DM Automation", desc: "Auto-reply to comments with smart messages." },
+  { icon: TrendingUp, gradient: "from-blue-500 to-cyan-500",     glow: "shadow-blue-500/30",    border: "border-blue-500/20",    bg: "bg-blue-500/8",    text: "text-blue-300",    label: "Analytics",        desc: "Track DM volume, engagement and growth." },
+  { icon: Shield,     gradient: "from-emerald-500 to-teal-500", glow: "shadow-emerald-500/30", border: "border-emerald-500/20", bg: "bg-emerald-500/8", text: "text-emerald-300", label: "Secure & Private",  desc: "OAuth only — we never see your password." },
 ];
 
-const FEATURES = [
-  { icon: MessageCircle, color: "violet", label: "Auto-Reply DMs", desc: "Respond to every keyword comment instantly." },
-  { icon: Hash, color: "pink", label: "Keyword Triggers", desc: "Target words like 'price', 'link', or 'info'." },
-  { icon: TrendingUp, color: "emerald", label: "Analytics", desc: "Track DM volume, success rates, and trends." },
-  { icon: Zap, color: "amber", label: "AI Personalization", desc: "Generate unique replies per user, every time." },
-];
+function timeAgo(iso: string) {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d === 0) return "Today";
+  if (d === 1) return "Yesterday";
+  if (d < 7) return `${d}d ago`;
+  if (d < 30) return `${Math.floor(d / 7)}w ago`;
+  return `${Math.floor(d / 30)}mo ago`;
+}
 
-const colorMap: Record<string, string> = {
-  violet: "text-violet-400 bg-violet-400/10 border-violet-400/10",
-  pink: "text-pink-400 bg-pink-400/10 border-pink-400/10",
-  emerald: "text-emerald-400 bg-emerald-400/10 border-emerald-400/10",
-  amber: "text-amber-400 bg-amber-400/10 border-amber-400/10",
-};
-
-export default function InstagramIntegrationPage() {
-  const { data: session } = useSession();
-  const [igToken, setIgToken] = useState("");
-  const [igAccountId, setIgAccountId] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showToken, setShowToken] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [savedState, setSavedState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [connectionStatus, setConnectionStatus] = useState<"idle" | "connected" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const webhookUrl = `${process.env.NEXT_PUBLIC_URL || "https://your-domain.com"}/api/webhooks/instagram`;
-
-  useEffect(() => {
-    if (session?.user) {
-      const fetchUserData = async () => {
-        try {
-          const res = await fetch("/api/user/profile");
-          if (res.ok) {
-            const data = await res.json();
-            setIgToken(data.ig_access_token || "");
-            setIgAccountId(data.ig_account_id || "");
-            if (data.ig_access_token && data.ig_account_id) {
-              setConnectionStatus("connected");
-            }
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
-      fetchUserData();
-    }
-  }, [session]);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavedState("saving");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ig_access_token: igToken, ig_account_id: igAccountId }),
-      });
-      if (res.ok) {
-        setSavedState("saved");
-        setConnectionStatus("connected");
-        setTimeout(() => setSavedState("idle"), 3000);
-      } else {
-        const data = await res.json();
-        setErrorMsg(data.message || "Failed to save");
-        setSavedState("error");
-        setConnectionStatus("error");
-        setTimeout(() => setSavedState("idle"), 3000);
-      }
-    } catch {
-      setErrorMsg("An unexpected error occurred");
-      setSavedState("error");
-      setTimeout(() => setSavedState("idle"), 3000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/auth/instagram/refresh", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setSavedState("saved");
-        setTimeout(() => setSavedState("idle"), 3000);
-      } else {
-        setErrorMsg(data.message || "Refresh failed");
-      }
-    } catch {
-      setErrorMsg("Failed to reach refresh service");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+// ─── Media Card ────────────────────────────────────────────────────────────────
+function MediaCard({ item }: { item: MediaItem }) {
+  const isReel = item.type === "VIDEO";
   return (
-    <div className="min-h-screen bg-[#080808] text-white">
-      {/* Ambient */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-5%] right-[10%] w-[700px] h-[700px] bg-pink-600/4 rounded-full blur-[130px]" />
-        <div className="absolute bottom-[5%] left-[5%] w-[400px] h-[400px] bg-violet-600/4 rounded-full blur-[100px]" />
+    <motion.a
+      href={item.permalink}
+      target="_blank"
+      rel="noopener noreferrer"
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      className="group block rounded-2xl overflow-hidden bg-[#111] border border-[#1a1a1a] hover:border-[#333]"
+    >
+      <div className="relative aspect-[9/16] overflow-hidden bg-[#0d0d0d]">
+        {item.url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.url} alt={item.caption || "Post"}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="w-10 h-10 text-[#333]" />
+          </div>
+        )}
+
+        {/* Hover stats */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+          <div className="flex items-center gap-4 text-white">
+            <div className="flex items-center gap-1.5"><Heart className="w-4 h-4 fill-current text-pink-400" /><span className="text-xs font-bold">{item.likes.toLocaleString()}</span></div>
+            <div className="flex items-center gap-1.5"><MessageSquare className="w-4 h-4" /><span className="text-xs font-bold">{item.comments.toLocaleString()}</span></div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        {isReel && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
+            <Play className="w-2.5 h-2.5 fill-current" /> Reel
+          </div>
+        )}
+        {item.type === "CAROUSEL_ALBUM" && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
+            <LayoutGrid className="w-2.5 h-2.5" /> Album
+          </div>
+        )}
+        {isReel && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-0 transition-opacity pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+              <Play className="w-5 h-5 text-white fill-current ml-0.5" />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 py-10">
+      <div className="p-3">
+        <p className="text-[11px] text-[#444] line-clamp-2 leading-relaxed mb-2">
+          {item.caption || <span className="italic text-[#2a2a2a]">No caption</span>}
+        </p>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[#2f2f2f]">{timeAgo(item.timestamp)}</span>
+          <ExternalLink className="w-3 h-3 text-[#2a2a2a] group-hover:text-[#555] transition-colors" />
+        </div>
+      </div>
+    </motion.a>
+  );
+}
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6"
-        >
-          <div className="flex items-center gap-5">
-            <div className="relative shrink-0">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888] flex items-center justify-center shadow-xl shadow-pink-900/20">
-                <Instagram className="w-7 h-7 text-white" />
-              </div>
-              {connectionStatus === "connected" && (
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+export default function InstagramIntegrationPage() {
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+
+  const [connectionStatus, setConnectionStatus] = useState<"loading" | "idle" | "connected">("loading");
+  const [igUsername, setIgUsername]   = useState("");
+  const [igAccountId, setIgAccountId] = useState("");
+  const [media, setMedia]             = useState<MediaItem[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError]   = useState("");
+  const [filter, setFilter]           = useState<"ALL" | "VIDEO" | "IMAGE">("ALL");
+  const [oauthError, setOauthError]   = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── Load media ─────────────────────────────────────────────────────────────
+  const loadMedia = useCallback(async () => {
+    setMediaLoading(true);
+    setMediaError("");
+    try {
+      const res  = await fetch("/api/instagram/media");
+      const data = await res.json();
+      if (data.error) setMediaError(data.error);
+      else setMedia(data.media || []);
+    } catch {
+      setMediaError("Failed to load media from Instagram.");
+    } finally {
+      setMediaLoading(false);
+    }
+  }, []);
+
+  // ── On mount ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session?.user) return;
+
+    // Handle OAuth redirect params
+    const connected = searchParams.get("connected");
+    const username  = searchParams.get("username");
+    const err       = searchParams.get("error");
+    if (err) setOauthError(decodeURIComponent(err));
+
+    (async () => {
+      try {
+        const res  = await fetch("/api/user/profile");
+        const data = res.ok ? await res.json() : null;
+        if (data?.ig_access_token && data?.ig_account_id) {
+          setIgAccountId(data.ig_account_id);
+          setIgUsername(username ? decodeURIComponent(username) : (connected ? "" : ""));
+          setConnectionStatus("connected");
+          loadMedia();
+        } else {
+          setConnectionStatus("idle");
+        }
+      } catch {
+        setConnectionStatus("idle");
+      }
+    })();
+  }, [session, searchParams, loadMedia]);
+
+  // ── Disconnect ─────────────────────────────────────────────────────────────
+  const handleDisconnect = async () => {
+    await fetch("/api/user/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ig_access_token: "", ig_account_id: "" }),
+    });
+    setIgUsername(""); setIgAccountId("");
+    setMedia([]); setConnectionStatus("idle");
+  };
+
+  // ── Refresh token ──────────────────────────────────────────────────────────
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try { await fetch("/api/auth/instagram/refresh", { method: "POST" }); }
+    catch { /* ignore */ }
+    finally { setIsRefreshing(false); }
+  };
+
+  const filteredMedia = media.filter(m =>
+    filter === "ALL" ? true : filter === "VIDEO" ? m.type === "VIDEO" : m.type !== "VIDEO"
+  );
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (connectionStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-pink-400 animate-spin" />
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CONNECTED — show Reels / Posts grid
+  // ══════════════════════════════════════════════════════════════════════════
+  if (connectionStatus === "connected") {
+    return (
+      <div className="min-h-screen bg-[#080808] text-white">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 right-[10%] w-[600px] h-[600px] bg-pink-600/5 rounded-full blur-[130px]" />
+          <div className="absolute bottom-0 left-[5%] w-[400px] h-[400px] bg-violet-600/4 rounded-full blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 py-10">
+
+          {/* Header */}
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center shadow-xl shadow-pink-900/20">
+                  <Instagram className="w-7 h-7 text-white" />
+                </div>
                 <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-500 rounded-full border-2 border-[#080808] flex items-center justify-center">
                   <CheckCircle2 className="w-3 h-3 text-white" />
                 </div>
-              )}
+              </div>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Connected</span>
+                <h1 className="text-2xl font-black tracking-tight">Your Instagram Content</h1>
+                {igUsername && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <User className="w-3 h-3 text-[#555]" />
+                    <span className="text-[#555] text-[13px]">@{igUsername}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-pink-400 mb-1">Dashboard</p>
-              <h1 className="text-3xl font-black tracking-tight text-white">Instagram Integration</h1>
-              <p className="text-[#555] text-[14px] mt-0.5">Connect your Business account to activate AI DM automations.</p>
+
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <button onClick={handleRefresh} disabled={isRefreshing}
+                className="flex items-center gap-2 text-[13px] font-bold text-[#666] hover:text-white bg-[#111] border border-[#222] hover:border-[#333] px-4 py-2.5 rounded-xl transition-all">
+                {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Refresh Token
+              </button>
+              <button onClick={loadMedia} disabled={mediaLoading}
+                className="flex items-center gap-2 text-[13px] font-bold text-white bg-gradient-to-r from-pink-500/80 to-violet-500/80 hover:from-pink-500 hover:to-violet-500 px-4 py-2.5 rounded-xl transition-all">
+                {mediaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Reload
+              </button>
+              <button onClick={handleDisconnect}
+                className="flex items-center gap-2 text-[13px] font-bold text-red-400/60 hover:text-red-400 bg-[#111] border border-[#222] hover:border-red-500/30 px-4 py-2.5 rounded-xl transition-all">
+                <LogOut className="w-4 h-4" /> Disconnect
+              </button>
             </div>
+          </motion.div>
+
+          {/* Stats bar */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+            className="flex items-center gap-4 mb-6 p-4 bg-[#111] border border-[#1a1a1a] rounded-2xl">
+            {[
+              { icon: Film, color: "text-pink-400", label: "Reels", count: media.filter(m => m.type === "VIDEO").length },
+              { icon: ImageIcon, color: "text-violet-400", label: "Photos", count: media.filter(m => m.type !== "VIDEO").length },
+              { icon: LayoutGrid, color: "text-blue-400", label: "Total", count: media.length },
+            ].map(({ icon: Icon, color, label, count }, i) => (
+              <div key={i} className="flex items-center gap-2 text-[13px]">
+                {i > 0 && <div className="w-px h-4 bg-[#222] mr-2" />}
+                <Icon className={`w-4 h-4 ${color}`} />
+                <span className="text-[#666]">{label}:</span>
+                <span className="text-white font-bold">{count}</span>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Filter tabs */}
+          <div className="flex items-center gap-2 mb-6">
+            {(["ALL", "VIDEO", "IMAGE"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${
+                  filter === f ? "bg-white text-black" : "bg-[#111] border border-[#1a1a1a] text-[#555] hover:text-white hover:border-[#2a2a2a]"
+                }`}>
+                {f === "ALL" && <LayoutGrid className="w-3.5 h-3.5" />}
+                {f === "VIDEO" && <Film className="w-3.5 h-3.5" />}
+                {f === "IMAGE" && <ImageIcon className="w-3.5 h-3.5" />}
+                {f === "ALL" ? "All" : f === "VIDEO" ? "Reels" : "Photos"}
+                <span className="opacity-50 text-[10px]">
+                  ({f === "ALL" ? media.length : f === "VIDEO" ? media.filter(m => m.type === "VIDEO").length : media.filter(m => m.type !== "VIDEO").length})
+                </span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            {connectionStatus === "connected" ? (
-              <>
-                <div className="flex items-center gap-2 text-[13px] font-bold text-emerald-400 bg-emerald-400/8 border border-emerald-400/15 px-4 py-2.5 rounded-xl">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Connected
+          {mediaError && (
+            <div className="mb-6 flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl text-[13px] text-red-400">
+              <AlertCircle className="w-4 h-4 shrink-0" />{mediaError}
+            </div>
+          )}
+
+          {/* Grid */}
+          {mediaLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-[#111] border border-[#1a1a1a] overflow-hidden animate-pulse">
+                  <div className="aspect-[9/16] bg-[#161616]" />
+                  <div className="p-3 space-y-2"><div className="h-3 bg-[#161616] rounded w-3/4" /><div className="h-2 bg-[#161616] rounded w-1/2" /></div>
                 </div>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="flex items-center gap-2 text-[13px] font-bold text-[#666] hover:text-white bg-[#111] border border-[#222] hover:border-[#333] px-4 py-2.5 rounded-xl transition-all disabled:opacity-50"
+              ))}
+            </div>
+          ) : filteredMedia.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center mb-5 opacity-20">
+                <Instagram className="w-9 h-9 text-white" />
+              </div>
+              <p className="text-[#444] font-bold mb-1">No posts found</p>
+              <p className="text-[#333] text-[13px]">{filter !== "ALL" ? "Try switching to 'All'" : "No media on this account."}</p>
+            </div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {filteredMedia.map((item, i) => (
+                <motion.div key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.035 }}>
+                  <MediaCard item={item} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // NOT CONNECTED — Premium "Login with Instagram" screen
+  // ══════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="min-h-screen text-white flex items-center justify-center p-6 relative overflow-hidden"
+      style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,54,255,0.28) 0%, rgba(139,92,246,0.10) 40%, #06040f 70%)" }}>
+
+      {/* Deep space star-field ambient layers */}
+      <div className="fixed inset-0 pointer-events-none">
+        {/* Top center purple-indigo glow */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[520px] bg-gradient-to-b from-violet-700/35 via-indigo-700/20 to-transparent rounded-full blur-[120px]" />
+        {/* Bottom-left accent */}
+        <div className="absolute bottom-0 left-0 w-[500px] h-[400px] bg-indigo-900/20 rounded-full blur-[100px]" />
+        {/* Bottom-right warm accent */}
+        <div className="absolute bottom-0 right-0 w-[400px] h-[350px] bg-purple-900/15 rounded-full blur-[90px]" />
+        {/* Subtle pink for the IG brand */}
+        <div className="absolute top-1/3 right-[5%] w-[300px] h-[300px] bg-pink-900/10 rounded-full blur-[80px]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+
+        {/* Error */}
+        <AnimatePresence>
+          {oauthError && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="mb-5 flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/25 rounded-2xl text-[13px] text-red-400 backdrop-blur-sm">
+              <AlertCircle className="w-4 h-4 shrink-0" />{oauthError}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0, y: 32, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 220, damping: 26 }}
+          className="relative"
+        >
+          {/* Outer glow ring */}
+          <div className="absolute -inset-px rounded-[28px] bg-gradient-to-br from-violet-500/40 via-indigo-500/20 to-pink-500/20 blur-[2px]" />
+          <div className="absolute -inset-4 rounded-[36px] bg-gradient-to-br from-violet-600/15 via-transparent to-pink-600/10 blur-3xl" />
+
+          {/* Card */}
+          <div className="relative rounded-[26px] overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/60"
+            style={{ background: "rgba(12, 8, 28, 0.85)", backdropFilter: "blur(24px)" }}>
+
+            {/* ── Glassmorphism Header ── */}
+            <div className="relative overflow-hidden">
+              {/* Background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888]" />
+              {/* Frosted glass overlay */}
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.12)", backdropFilter: "blur(0px)" }} />
+              {/* Radial light burst */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.25),transparent_65%)]" />
+              {/* Noise texture shimmer */}
+              <div className="absolute inset-0 opacity-20 mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOCIgbnVtT2N0YXZlcz0iNCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIxIi8+PC9zdmc+')]" />
+
+              <div className="relative z-10 flex flex-col items-center justify-center gap-4 py-10 px-6">
+                {/* Frosted glass tile */}
+                <motion.div
+                  animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
+                  transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
+                  className="relative"
                 >
-                  {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  Refresh Token
-                </button>
-              </>
-            ) : (
-              <div className="flex items-center gap-2 text-[13px] font-bold text-amber-400 bg-amber-400/8 border border-amber-400/15 px-4 py-2.5 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" />
-                Setup Required
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-          {/* === LEFT: Config Form === */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="xl:col-span-2 space-y-5"
-          >
-            {/* Config Card */}
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-2xl overflow-hidden">
-              <div className="px-8 py-6 border-b border-[#1a1a1a] flex items-center gap-4">
-                <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/15 flex items-center justify-center">
-                  <Shield className="w-4.5 h-4.5 text-violet-400" />
-                </div>
-                <div>
-                  <h2 className="text-[16px] font-bold text-white">API Credentials</h2>
-                  <p className="text-[12px] text-[#444] mt-0.5">Your tokens are encrypted and never exposed publicly.</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSave} className="p-8 space-y-7">
-                {/* Account ID */}
-                <div className="space-y-2.5">
-                  <label className="text-[11px] font-black text-[#444] uppercase tracking-[0.15em]">
-                    Instagram Business Account ID
-                  </label>
-                  <input
-                    type="text"
-                    value={igAccountId}
-                    onChange={(e) => setIgAccountId(e.target.value)}
-                    className="w-full bg-[#0d0d0d] border border-[#1d1d1d] rounded-xl px-5 py-3.5 text-[15px] text-white font-mono placeholder:text-[#2a2a2a] focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/15 transition-all"
-                    placeholder="17841401234567890"
-                  />
-                  <p className="text-[11px] text-[#3a3a3a] leading-relaxed">
-                    Find this in Meta Events Manager → Data Sources → your Instagram page.
-                  </p>
-                </div>
-
-                {/* Access Token */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-black text-[#444] uppercase tracking-[0.15em]">
-                      Long-Lived Access Token
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[#444] hover:text-[#888] transition-colors"
-                    >
-                      {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      {showToken ? "Hide" : "Reveal"}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <textarea
-                      rows={3}
-                      value={igToken}
-                      onChange={(e) => setIgToken(e.target.value)}
-                      className="w-full bg-[#0d0d0d] border border-[#1d1d1d] rounded-xl px-5 py-3.5 text-[14px] text-white font-mono placeholder:text-[#2a2a2a] focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/15 transition-all resize-none"
-                      placeholder="IGQV..."
-                      style={{ WebkitTextSecurity: showToken ? "none" : "disc" } as React.CSSProperties}
-                    />
-                  </div>
-
-                  {/* Token Info */}
-                  <div className="flex items-start gap-3 p-4 bg-[#0d0d0d] border border-[#1d1d1d] rounded-xl">
-                    <AlertCircle className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
-                    <p className="text-[12px] text-[#555] leading-relaxed">
-                      Tokens expire after <span className="text-violet-400 font-bold">60 days</span>. Use the "Refresh Token" button in the top bar to extend validity. Set a calendar reminder to refresh every 50 days.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Save Button */}
-                <div className="flex items-center justify-between pt-2">
-                  <AnimatePresence mode="wait">
-                    {savedState === "saved" && (
-                      <motion.div key="saved" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 text-[13px] font-semibold text-emerald-400">
-                        <CheckCircle2 className="w-4 h-4" /> Credentials saved!
-                      </motion.div>
-                    )}
-                    {savedState === "error" && (
-                      <motion.div key="error" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 text-[13px] font-semibold text-red-400">
-                        <AlertCircle className="w-4 h-4" /> {errorMsg}
-                      </motion.div>
-                    )}
-                    {(savedState === "idle" || savedState === "saving") && <span />}
-                  </AnimatePresence>
-
-                  <button
-                    type="submit"
-                    disabled={savedState === "saving"}
-                    className="flex items-center gap-2.5 bg-white hover:bg-white/90 active:scale-[0.97] text-black px-7 py-3 rounded-xl text-[14px] font-black transition-all shadow-lg shadow-black/30 disabled:opacity-60"
+                  {/* Icon glow */}
+                  <div className="absolute inset-0 rounded-[22px] bg-white/20 blur-lg" />
+                  <div
+                    className="relative w-20 h-20 rounded-[22px] flex items-center justify-center shadow-2xl"
+                    style={{
+                      background: "rgba(255,255,255,0.18)",
+                      backdropFilter: "blur(16px) saturate(180%)",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.4)",
+                    }}
                   >
-                    {savedState === "saving" ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Zap className="w-4 h-4 fill-current" />
-                    )}
-                    {savedState === "saving" ? "Saving…" : "Save Integration"}
-                  </button>
+                    <Instagram className="w-9 h-9 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" />
+                  </div>
+                </motion.div>
+
+                <div className="text-center">
+                  <p className="text-white font-black text-[15px] tracking-wide drop-shadow-md">Instagram Integration</p>
+                  <p className="text-white/60 text-[12px] mt-0.5 font-medium">Connect once. Automate forever.</p>
                 </div>
-              </form>
+              </div>
+
+              {/* Bottom fade into card */}
+              <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#0c081c]/70 to-transparent" />
             </div>
 
-            {/* Webhook URL */}
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Globe className="w-4 h-4 text-[#444]" />
-                <h3 className="text-[14px] font-bold text-[#888]">Webhook Endpoint</h3>
+            {/* ── Body ── */}
+            <div className="px-7 pt-6 pb-7">
+              <div className="text-center mb-6">
+                <h1 className="text-[22px] font-black text-white tracking-tight leading-tight mb-2">
+                  Connect Your Account
+                </h1>
+                <p className="text-[#6b6b8a] text-[13px] leading-relaxed">
+                  One click to securely sign in with Instagram.<br />No passwords. No manual tokens.
+                </p>
               </div>
-              <div className="flex items-center gap-3 bg-[#0d0d0d] border border-[#1d1d1d] rounded-xl px-4 py-3 group">
-                <code className="flex-1 text-[12px] text-violet-400 font-mono truncate">{webhookUrl}</code>
-                <button
-                  onClick={handleCopy}
-                  className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-[#444] hover:text-white transition-colors bg-[#1a1a1a] hover:bg-[#222] px-3 py-1.5 rounded-lg"
-                >
-                  {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              <p className="text-[11px] text-[#3a3a3a] mt-3">Subscribe to <span className="text-[#555] font-semibold">comments</span> events. Use <span className="text-[#555] font-semibold">INSTAGRAM_VERIFY_TOKEN</span> from your <code className="bg-[#1a1a1a] px-1.5 py-0.5 rounded text-[10px]">.env</code> as the verify token.</p>
-            </div>
 
-            {/* Feature Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              {FEATURES.map((feat, i) => {
-                const Icon = feat.icon;
-                return (
+              {/* ── Color-coded feature cards ── */}
+              <div className="grid grid-cols-2 gap-2.5 mb-6">
+                {PERKS.map(({ icon: Icon, gradient, glow, border, bg, text, label, desc }, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + i * 0.08 }}
-                    className="bg-[#111] border border-[#1a1a1a] rounded-2xl p-5 hover:border-[#2a2a2a] transition-colors group"
+                    transition={{ delay: 0.1 + i * 0.07 }}
+                    className={`relative rounded-2xl p-4 border ${border} ${bg} overflow-hidden group hover:scale-[1.02] transition-transform duration-200`}
+                    style={{ backdropFilter: "blur(8px)" }}
                   >
-                    <div className={`w-9 h-9 rounded-xl border flex items-center justify-center mb-4 ${colorMap[feat.color]}`}>
-                      <Icon className="w-4 h-4" />
+                    {/* Subtle inner glow on hover */}
+                    <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${gradient} opacity-[0.07]`} />
+                    {/* Icon with gradient bg */}
+                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center mb-3 shadow-lg ${glow} bg-gradient-to-br ${gradient}`}>
+                      <Icon className="w-4.5 h-4.5 text-white" />
                     </div>
-                    <p className="text-[14px] font-bold text-white mb-1">{feat.label}</p>
-                    <p className="text-[12px] text-[#444] leading-relaxed">{feat.desc}</p>
+                    <p className={`text-[12.5px] font-black mb-0.5 ${text}`}>{label}</p>
+                    <p className="text-[11px] text-[#4a4a6a] leading-snug">{desc}</p>
                   </motion.div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* ── CTA Button ── */}
+              <motion.a
+                href="/api/auth/instagram/authorize"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className="group relative flex items-center justify-center gap-3 w-full py-[15px] rounded-2xl font-black text-[15px] text-white overflow-hidden"
+                style={{ boxShadow: "0 4px 32px rgba(220,39,67,0.4), 0 0 0 1px rgba(255,255,255,0.1)" }}
+              >
+                {/* Full Instagram gradient */}
+                <span className="absolute inset-0 bg-gradient-to-r from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888]" />
+                {/* Shimmer sweep */}
+                <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-700 bg-[linear-gradient(105deg,transparent_30%,rgba(255,255,255,0.18)_50%,transparent_70%)] bg-[size:200%] bg-[position:-100%] group-hover:bg-[position:200%]" />
+                {/* Top shine */}
+                <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
+                <Instagram className="w-5 h-5 relative z-10 drop-shadow-sm" />
+                <span className="relative z-10 tracking-wide">Login with Instagram</span>
+                <ArrowRight className="w-4.5 h-4.5 relative z-10 group-hover:translate-x-1 transition-transform duration-200" />
+              </motion.a>
+
+              <p className="text-center text-[11px] text-[#38385a] mt-4 leading-relaxed">
+                By connecting, you agree to Instagram&apos;s Terms of Service.
+                We request <span className="text-[#55557a] font-semibold">read-only</span> access to your media.
+              </p>
             </div>
-          </motion.div>
-
-          {/* === RIGHT: Setup Guide === */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="space-y-5"
-          >
-            <div className="bg-[#111] border border-[#1a1a1a] rounded-2xl overflow-hidden sticky top-6">
-              <div className="px-6 py-5 border-b border-[#1a1a1a]">
-                <h2 className="text-[15px] font-black text-white">Quick Setup Guide</h2>
-                <p className="text-[12px] text-[#444] mt-1">Follow these steps to go live in under 10 minutes.</p>
-              </div>
-              <div className="p-6">
-                <ol className="relative space-y-0">
-                  {/* Vertical line */}
-                  <div className="absolute left-[22px] top-8 bottom-8 w-px bg-[#1d1d1d]" />
-
-                  {STEPS.map((step, i) => (
-                    <li key={i} className="relative flex gap-5 pb-7 last:pb-0">
-                      <div className="shrink-0 w-11 h-11 rounded-2xl bg-[#0d0d0d] border border-[#1d1d1d] flex items-center justify-center z-10">
-                        <span className="text-[11px] font-black text-[#444]">{step.num}</span>
-                      </div>
-                      <div className="flex-1 pt-2">
-                        <p className="text-[14px] font-bold text-white mb-1">{step.title}</p>
-                        <p className="text-[12px] text-[#444] leading-relaxed mb-2">{step.desc}</p>
-                        {step.link && (
-                          <a
-                            href={step.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-400 hover:text-violet-300 transition-colors"
-                          >
-                            {step.linkLabel}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-
-              {/* CTA */}
-              <div className="px-6 py-5 border-t border-[#1a1a1a] bg-[#0d0d0d]/50">
-                <a
-                  href="https://developers.facebook.com/docs/instagram-api"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between w-full group"
-                >
-                  <div>
-                    <p className="text-[13px] font-bold text-white">Full API Documentation</p>
-                    <p className="text-[11px] text-[#444] mt-0.5">Instagram Graph API reference</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-xl bg-[#1a1a1a] group-hover:bg-violet-500/10 border border-[#222] group-hover:border-violet-500/20 flex items-center justify-center transition-all">
-                    <ArrowRight className="w-4 h-4 text-[#555] group-hover:text-violet-400 transition-colors" />
-                  </div>
-                </a>
-              </div>
-            </div>
-          </motion.div>
-
-        </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

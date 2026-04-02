@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { supabaseAdmin } from "@/lib/supabase";
+import path from "path";
+import fs from "fs";
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
-const RUNWAY_SECRET   = process.env.RUNWAY_API_SECRET;
-const PIKA_API_KEY    = process.env.PIKA_API_KEY;
 
 /* ────────────────────────────────────────────────────────
-   QUEUE POLLER  GET /api/ai-ads/queue?jobId=...&provider=...&type=image|video
+   QUEUE POLLER  GET /api/ai-ads/queue?jobId=...&provider=replicate&type=image|video
    ──────────────────────────────────────────────────────── */
 export async function GET(req: Request) {
   try {
@@ -18,119 +18,151 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const jobId    = searchParams.get("jobId");
     const provider = searchParams.get("provider") ?? "replicate";
-    const type     = searchParams.get("type") ?? "image";
+    const type     = searchParams.get("type") ?? "video";
 
     if (!jobId) return NextResponse.json({ message: "jobId is required" }, { status: 400 });
 
-    let status = "processing";
-    let resultUrl: string | null = null;
-
-    /* ── Local poller (reads from DB because it runs in background) ── */
-    if (provider === "huggingface" || provider === "ffmpeg") {
-      if (supabaseAdmin) {
-        const { data: q } = await supabaseAdmin.from("ai_ad_queue").select("status, result_url").eq("provider_job_id", jobId).single();
-        if (q) {
-          status    = q.status;
-          resultUrl = q.result_url;
-        }
-      }
-      return NextResponse.json({ jobId, status, resultUrl });
-    }
-
-    /* ── Replicate polling ── */
-    if (provider === "replicate" || provider === "replicate_svd") {
-      const res = await fetch(`https://api.replicate.com/v1/predictions/${jobId}`, {
-        headers: { Authorization: `Token ${REPLICATE_TOKEN}` },
-      });
-      const data = await res.json();
-
-      if (data.status === "succeeded") {
-        status    = "done";
-        resultUrl = Array.isArray(data.output) ? data.output[0] : data.output;
-      } else if (data.status === "failed" || data.status === "canceled") {
-        status = "failed";
-      } else {
-        status = "processing";
-      }
-    }
-
-    /* ── Runway polling ── */
-    if (provider === "runway") {
-      const res = await fetch(`https://api.runwayml.com/v1/tasks/${jobId}`, {
-        headers: {
-          Authorization: `Bearer ${RUNWAY_SECRET}`,
-          "X-Runway-Version": "2024-11-06",
-        },
-      });
-      const data = await res.json();
-      if (data.status === "SUCCEEDED") { status = "done"; resultUrl = data.output?.[0]; }
-      else if (data.status === "FAILED") { status = "failed"; }
-    }
-
-    /* ── Pika polling ── */
-    if (provider === "pika") {
-      const res = await fetch(`https://api.pika.art/jobs/${jobId}`, {
-        headers: { Authorization: `Bearer ${PIKA_API_KEY}` },
-      });
-      const data = await res.json();
-      if (data.status === "finished") { status = "done"; resultUrl = data.resultUrl; }
-      else if (data.status === "failed") { status = "failed"; }
-    }
-
-    /* ── Pixazo polling ── */
-    if (provider === "pixazo") {
-      const PIXAZO_API_KEY = process.env.PIXAZO_API_KEY;
-      // Correct: gateway.pixazo.ai with Ocp-Apim-Subscription-Key header
-      const res = await fetch(
-        `https://gateway.pixazo.ai/p-video/v1/p-video/getGenerationResults?predictionId=${jobId}`,
-        {
-          headers: {
-            "Ocp-Apim-Subscription-Key": PIXAZO_API_KEY ?? "",
-            "Cache-Control": "no-cache",
-          },
-        }
-      );
-      const data = await res.json();
-      console.log("[Pixazo Poll]", res.status, JSON.stringify(data).substring(0, 300));
-      
-      const resStatus = (data.status ?? data.state ?? "").toLowerCase();
-      if (resStatus === "succeeded" || resStatus === "completed" || resStatus === "done") { 
-        status = "done"; 
-        resultUrl = data.url || data.video_url || data.result_url || data.output || data.videoUrl; 
-      }
-      else if (resStatus === "failed" || resStatus === "error") { 
-        status = "failed"; 
-      }
-      else { 
-        status = "processing"; 
-      }
-    }
-
-    /* ── Update Supabase queue row ── */
-    if (supabaseAdmin && (status === "done" || status === "failed")) {
-      const { data: queueRow } = await supabaseAdmin
+    /* ── Check if already resolved in Supabase (cache) ── */
+    if (supabaseAdmin) {
+      const { data: cached } = await supabaseAdmin
         .from("ai_ad_queue")
-        .update({ status, result_url: resultUrl })
+        .select("status, result_url")
         .eq("provider_job_id", jobId)
-        .select("project_id, job_type")
         .single();
 
-      // Reflect result back on the project row
-      if (queueRow?.project_id && status === "done") {
-        const column = queueRow.job_type === "video" ? "video_url" : "ad_image_url";
-        await supabaseAdmin
-          .from("ai_ad_projects")
-          .update({ [column]: resultUrl, status: "done" })
-          .eq("id", queueRow.project_id);
+      if (cached?.status === "done") {
+        console.log(`[Queue Poll] ✅ Cache hit — jobId=${jobId} status=done`);
+        return NextResponse.json({ jobId, status: "done", resultUrl: cached.result_url });
+      }
+      if (cached?.status === "failed") {
+        console.log(`[Queue Poll] ❌ Cache hit — jobId=${jobId} status=failed`);
+        return NextResponse.json({ jobId, status: "failed", resultUrl: null });
       }
     }
 
-    return NextResponse.json({ jobId, status, resultUrl });
+    /* ── Poll Replicate Predictions API directly ── */
+    if (!REPLICATE_TOKEN) {
+      return NextResponse.json({ jobId, status: "failed", message: "REPLICATE_API_TOKEN not set" });
+    }
+
+    const repRes = await fetch(`https://api.replicate.com/v1/predictions/${jobId}`, {
+      headers: {
+        Authorization: `Token ${REPLICATE_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!repRes.ok) {
+      const errBody = await repRes.text();
+      console.error(`[Queue Poll] Replicate API error ${repRes.status}:`, errBody);
+      return NextResponse.json({ jobId, status: "processing" }); // treat as still running
+    }
+
+    const prediction = await repRes.json();
+    console.log(`[Queue Poll] jobId=${jobId} replicate_status=${prediction.status} model=${prediction.model ?? "unknown"}`);
+
+    /* ── Still running ── */
+    if (prediction.status === "starting" || prediction.status === "processing") {
+      return NextResponse.json({ jobId, status: "processing" });
+    }
+
+    /* ── Failed or cancelled ── */
+    if (prediction.status === "failed" || prediction.status === "canceled") {
+      console.error(`[Queue Poll] ❌ Replicate job ${prediction.status}:`, prediction.error);
+      if (supabaseAdmin) {
+        await supabaseAdmin
+          .from("ai_ad_queue")
+          .update({ status: "failed", error: prediction.error ?? prediction.status })
+          .eq("provider_job_id", jobId);
+      }
+      return NextResponse.json({ jobId, status: "failed", message: prediction.error ?? "Replicate job failed" });
+    }
+
+    /* ── Succeeded ── */
+    if (prediction.status === "succeeded") {
+      console.log(`[Queue Poll] 🎉 Replicate succeeded! Output:`, JSON.stringify(prediction.output).substring(0, 200));
+
+      // Extract URL from output (varies by model)
+      let replicateUrl: string | null = null;
+      const out = prediction.output;
+      if (typeof out === "string") {
+        replicateUrl = out;
+      } else if (Array.isArray(out) && out.length > 0) {
+        const first = out[0];
+        // Some models return FileOutput objects with a url() method (replicate SDK)
+        replicateUrl = typeof first === "string" ? first : String(first);
+      }
+
+      if (!replicateUrl) {
+        console.error("[Queue Poll] ❌ No URL in output:", out);
+        return NextResponse.json({ jobId, status: "failed", message: "No output URL from Replicate" });
+      }
+
+      // Download file and save locally (runs inside a real request — safe)
+      let resultUrl = replicateUrl; // fallback: use Replicate URL directly
+      try {
+        const ext       = type === "image" ? "jpg" : "mp4";
+        const subDir    = type === "image" ? "ad-images" : "videos";
+        const fileDir   = path.join(process.cwd(), "public", subDir);
+        if (!fs.existsSync(fileDir)) fs.mkdirSync(fileDir, { recursive: true });
+
+        const fileName  = `${jobId}.${ext}`;
+        const filePath  = path.join(fileDir, fileName);
+        const dlRes     = await fetch(replicateUrl);
+
+        if (dlRes.ok) {
+          const buf = await dlRes.arrayBuffer();
+          fs.writeFileSync(filePath, Buffer.from(buf));
+          resultUrl = `/${subDir}/${fileName}`;
+          console.log(`[Queue Poll] 💾 Saved ${(buf.byteLength / 1024).toFixed(1)} KB → ${resultUrl}`);
+        } else {
+          console.warn(`[Queue Poll] Download failed (${dlRes.status}) — using Replicate URL directly`);
+        }
+      } catch (dlErr: any) {
+        console.warn("[Queue Poll] Download error — using Replicate URL directly:", dlErr.message);
+      }
+
+      // Update Supabase with final result
+      if (supabaseAdmin) {
+        await supabaseAdmin
+          .from("ai_ad_queue")
+          .update({ status: "done", result_url: resultUrl })
+          .eq("provider_job_id", jobId);
+
+        // Get project_id and update project row too
+        try {
+          const { data: qRow } = await supabaseAdmin
+            .from("ai_ad_queue")
+            .select("project_id, job_type")
+            .eq("provider_job_id", jobId)
+            .single();
+
+          if (qRow?.project_id) {
+            const col = qRow.job_type === "video" ? "video_url" : "ad_image_url";
+            await supabaseAdmin
+              .from("ai_ad_projects")
+              .update({ [col]: resultUrl, status: "done" })
+              .eq("id", qRow.project_id);
+          }
+        } catch { /* non-fatal */ }
+
+        console.log(`[Queue Poll] ✅ Supabase updated — job done`);
+      }
+
+      return NextResponse.json({ jobId, status: "done", resultUrl });
+    }
+
+    // Unknown status — treat as still processing
+    return NextResponse.json({ jobId, status: "processing" });
+
   } catch (err: any) {
     console.error("[ai-ads/queue GET]", err);
     return NextResponse.json({ message: err.message ?? "Internal Server Error" }, { status: 500 });
   }
 }
+
+
 
 /* ────────────────────────────────────────────────────────
    PROJECTS CRUD

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
+import InstagramConnectModal from "@/components/InstagramConnectModal";
 
 export default function DashboardLayout({
   children,
@@ -128,6 +129,9 @@ export default function DashboardLayout({
         <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none z-[-1]" />
         {children}
       </main>
+
+      {/* Instagram connection prompt (shown once per session if not connected) */}
+      <InstagramConnectModal />
     </div>
   );
 }
