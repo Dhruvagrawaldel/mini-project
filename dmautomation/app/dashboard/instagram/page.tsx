@@ -65,62 +65,82 @@ function timeAgo(iso: string) {
 
 // ─── Media Card ────────────────────────────────────────────────────────────────
 function MediaCard({ item }: { item: MediaItem }) {
-  const isReel = item.type === "VIDEO";
+  const isReel     = item.type === "VIDEO";
+  const isCarousel = item.type === "CAROUSEL_ALBUM";
+
   return (
     <motion.a
       href={item.permalink}
       target="_blank"
       rel="noopener noreferrer"
-      whileHover={{ y: -4, scale: 1.02 }}
-      transition={{ type: "spring", stiffness: 300, damping: 22 }}
-      className="group block rounded-2xl overflow-hidden bg-[#111] border border-[#1a1a1a] hover:border-[#333]"
+      whileHover={{ y: -6, scale: 1.025 }}
+      transition={{ type: "spring", stiffness: 340, damping: 24 }}
+      className="group relative block rounded-2xl overflow-hidden bg-[#0f0f0f] border border-white/[0.05] hover:border-white/[0.12] shadow-lg hover:shadow-2xl hover:shadow-black/60 transition-shadow"
     >
-      <div className="relative aspect-[9/16] overflow-hidden bg-[#0d0d0d]">
+      {/* Thumbnail */}
+      <div className="relative aspect-[9/16] overflow-hidden bg-[#0a0a0a]">
         {item.url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.url} alt={item.caption || "Post"}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img
+            src={item.url}
+            alt={item.caption || "Post"}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-10 h-10 text-[#333]" />
+            <ImageIcon className="w-10 h-10 text-[#222]" />
           </div>
         )}
 
-        {/* Hover stats */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-          <div className="flex items-center gap-4 text-white">
-            <div className="flex items-center gap-1.5"><Heart className="w-4 h-4 fill-current text-pink-400" /><span className="text-xs font-bold">{item.likes.toLocaleString()}</span></div>
-            <div className="flex items-center gap-1.5"><MessageSquare className="w-4 h-4" /><span className="text-xs font-bold">{item.comments.toLocaleString()}</span></div>
+        {/* Full-height gradient overlay on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-400" />
+
+        {/* Stats overlay — bottom left on hover */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Heart className="w-3.5 h-3.5 text-pink-400 fill-pink-400" />
+              <span className="text-white text-[11px] font-black">{item.likes.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <MessageSquare className="w-3.5 h-3.5 text-white/70" />
+              <span className="text-white text-[11px] font-black">{item.comments.toLocaleString()}</span>
+            </div>
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Type pill badge — top right */}
         {isReel && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
-            <Play className="w-2.5 h-2.5 fill-current" /> Reel
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-2 py-1 rounded-full border border-white/10">
+            <Play className="w-2.5 h-2.5 fill-white" />
+            Reel
           </div>
         )}
-        {item.type === "CAROUSEL_ALBUM" && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
-            <LayoutGrid className="w-2.5 h-2.5" /> Album
+        {isCarousel && (
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-2 py-1 rounded-full border border-white/10">
+            <LayoutGrid className="w-2.5 h-2.5" />
+            Album
           </div>
         )}
+
+        {/* Play icon for reels */}
         {isReel && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-0 transition-opacity pointer-events-none">
-            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
-              <Play className="w-5 h-5 text-white fill-current ml-0.5" />
+          <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+            <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center">
+              <Play className="w-4.5 h-4.5 text-white fill-white ml-0.5" />
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-3">
-        <p className="text-[11px] text-[#444] line-clamp-2 leading-relaxed mb-2">
-          {item.caption || <span className="italic text-[#2a2a2a]">No caption</span>}
+      {/* Caption + time */}
+      <div className="px-3 py-2.5">
+        <p className="text-[10.5px] text-[#3a3a3a] line-clamp-2 leading-relaxed mb-1">
+          {item.caption || <span className="italic text-[#252525]">No caption</span>}
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-[#2f2f2f]">{timeAgo(item.timestamp)}</span>
-          <ExternalLink className="w-3 h-3 text-[#2a2a2a] group-hover:text-[#555] transition-colors" />
+          <span className="text-[10px] text-[#282828]">{timeAgo(item.timestamp)}</span>
+          <ExternalLink className="w-3 h-3 text-[#252525] group-hover:text-[#555] transition-colors" />
         </div>
       </div>
     </motion.a>
@@ -135,6 +155,7 @@ export default function InstagramIntegrationPage() {
   const [connectionStatus, setConnectionStatus] = useState<"loading" | "idle" | "connected">("loading");
   const [igUsername, setIgUsername]   = useState("");
   const [igAccountId, setIgAccountId] = useState("");
+  const [igProfilePic, setIgProfilePic] = useState<string | null>(null);
   const [media, setMedia]             = useState<MediaItem[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaError, setMediaError]   = useState("");
@@ -184,6 +205,15 @@ export default function InstagramIntegrationPage() {
           setIgUsername(username ? decodeURIComponent(username) : (connected ? "" : ""));
           setConnectionStatus("connected");
           loadMedia();
+
+          // Fetch real profile picture + username
+          fetch("/api/instagram/profile")
+            .then(r => r.json())
+            .then(p => {
+              if (p.username) setIgUsername(p.username);
+              if (p.profilePic) setIgProfilePic(p.profilePic);
+            })
+            .catch(() => {});
         } else {
           setConnectionStatus("idle");
         }
@@ -192,6 +222,7 @@ export default function InstagramIntegrationPage() {
       }
     })();
   }, [session, searchParams, loadMedia]);
+
 
   // ── Disconnect ─────────────────────────────────────────────────────────────
   const handleDisconnect = async () => {
@@ -226,124 +257,209 @@ export default function InstagramIntegrationPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CONNECTED — show Reels / Posts grid
+  // CONNECTED — Premium Reels / Posts dashboard
   // ══════════════════════════════════════════════════════════════════════════
   if (connectionStatus === "connected") {
+    const reelCount  = media.filter(m => m.type === "VIDEO").length;
+    const photoCount = media.filter(m => m.type !== "VIDEO").length;
+
     return (
-      <div className="min-h-screen bg-[#080808] text-white">
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-[10%] w-[600px] h-[600px] bg-pink-600/5 rounded-full blur-[130px]" />
-          <div className="absolute bottom-0 left-[5%] w-[400px] h-[400px] bg-violet-600/4 rounded-full blur-[100px]" />
+      <div className="min-h-screen bg-[#060608] text-white">
+        {/* Ambient background */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-[700px] h-[500px] bg-gradient-to-bl from-pink-600/8 via-violet-600/5 to-transparent rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[400px] bg-violet-900/10 rounded-full blur-[100px]" />
         </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 py-10">
+        <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-8">
 
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-            className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="relative shrink-0">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center shadow-xl shadow-pink-900/20">
-                  <Instagram className="w-7 h-7 text-white" />
+          {/* ── Hero Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative mb-8 rounded-3xl overflow-hidden"
+          >
+            {/* Header gradient bg */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1a0a1e] via-[#12081a] to-[#0d0610]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-600/15 via-violet-600/8 to-transparent" />
+            <div className="absolute inset-0 border border-white/[0.05] rounded-3xl" />
+
+            <div className="relative px-7 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              {/* Left: identity */}
+              <div className="flex items-center gap-4">
+                {/* Profile picture with live dot */}
+                <div className="relative shrink-0">
+                  {igProfilePic ? (
+                    // Real Instagram profile photo
+                    <div className="relative w-[58px] h-[58px] rounded-[18px] overflow-hidden ring-2 ring-white/10 shadow-2xl shadow-pink-900/30">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={igProfilePic}
+                        alt={igUsername || "Instagram"}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Subtle IG gradient ring overlay */}
+                      <div className="absolute inset-0 rounded-[18px] ring-2 ring-inset ring-gradient-to-tr from-[#f09433] to-[#bc1888] opacity-30 pointer-events-none" />
+                    </div>
+                  ) : (
+                    // Fallback: IG gradient icon
+                    <div className="w-[58px] h-[58px] rounded-[18px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center shadow-2xl shadow-pink-900/30">
+                      <Instagram className="w-7 h-7 text-white" />
+                    </div>
+                  )}
+                  {/* Live green dot */}
+                  <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#060608] flex items-center justify-center shadow-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                  </span>
                 </div>
-                <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-500 rounded-full border-2 border-[#080808] flex items-center justify-center">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Connected</span>
-                <h1 className="text-2xl font-black tracking-tight">Your Instagram Content</h1>
-                {igUsername && (
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <User className="w-3 h-3 text-[#555]" />
-                    <span className="text-[#555] text-[13px]">@{igUsername}</span>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">● Connected</span>
                   </div>
-                )}
+                  <h1 className="text-[22px] font-black tracking-tight text-white leading-tight">
+                    {igUsername ? `@${igUsername}` : "Your Instagram Content"}
+                  </h1>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {igUsername && (
+                      <span className="text-[12px] text-[#666] font-medium">Instagram account</span>
+                    )}
+                    {igUsername && <span className="text-[#333]">·</span>}
+                    <span className="text-[12px] text-[#555]">{media.length} posts</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
-              <button onClick={handleRefresh} disabled={isRefreshing}
-                className="flex items-center gap-2 text-[13px] font-bold text-[#666] hover:text-white bg-[#111] border border-[#222] hover:border-[#333] px-4 py-2.5 rounded-xl transition-all">
-                {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Refresh Token
-              </button>
-              <button onClick={loadMedia} disabled={mediaLoading}
-                className="flex items-center gap-2 text-[13px] font-bold text-white bg-gradient-to-r from-pink-500/80 to-violet-500/80 hover:from-pink-500 hover:to-violet-500 px-4 py-2.5 rounded-xl transition-all">
-                {mediaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Reload
-              </button>
-              <button onClick={handleDisconnect}
-                className="flex items-center gap-2 text-[13px] font-bold text-red-400/60 hover:text-red-400 bg-[#111] border border-[#222] hover:border-red-500/30 px-4 py-2.5 rounded-xl transition-all">
-                <LogOut className="w-4 h-4" /> Disconnect
-              </button>
+
+              {/* Right: actions */}
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-1.5 text-[12px] font-bold text-[#555] hover:text-white border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] px-3.5 py-2 rounded-xl transition-all"
+                >
+                  {isRefreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Refresh Token
+                </button>
+
+                <button
+                  onClick={loadMedia}
+                  disabled={mediaLoading}
+                  className="flex items-center gap-1.5 text-[12px] font-black text-white px-4 py-2 rounded-xl transition-all bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-400 hover:to-violet-500 shadow-lg shadow-pink-900/25"
+                >
+                  {mediaLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Reload
+                </button>
+
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center gap-1.5 text-[12px] font-bold text-[#444] hover:text-red-400 border border-white/[0.06] hover:border-red-500/20 bg-white/[0.02] px-3.5 py-2 rounded-xl transition-all"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Disconnect
+                </button>
+              </div>
             </div>
           </motion.div>
 
-          {/* Stats bar */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
-            className="flex items-center gap-4 mb-6 p-4 bg-[#111] border border-[#1a1a1a] rounded-2xl">
+          {/* ── Stat Cards ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="grid grid-cols-3 gap-3 mb-7"
+          >
             {[
-              { icon: Film, color: "text-pink-400", label: "Reels", count: media.filter(m => m.type === "VIDEO").length },
-              { icon: ImageIcon, color: "text-violet-400", label: "Photos", count: media.filter(m => m.type !== "VIDEO").length },
-              { icon: LayoutGrid, color: "text-blue-400", label: "Total", count: media.length },
-            ].map(({ icon: Icon, color, label, count }, i) => (
-              <div key={i} className="flex items-center gap-2 text-[13px]">
-                {i > 0 && <div className="w-px h-4 bg-[#222] mr-2" />}
-                <Icon className={`w-4 h-4 ${color}`} />
-                <span className="text-[#666]">{label}:</span>
-                <span className="text-white font-bold">{count}</span>
-              </div>
+              { icon: Film,        gradient: "from-pink-500 to-rose-600",     shadow: "shadow-pink-500/20",    label: "Reels",  count: reelCount  },
+              { icon: ImageIcon,   gradient: "from-violet-500 to-indigo-600", shadow: "shadow-violet-500/20", label: "Photos", count: photoCount },
+              { icon: LayoutGrid,  gradient: "from-blue-500 to-cyan-500",     shadow: "shadow-blue-500/20",   label: "Total",  count: media.length },
+            ].map(({ icon: Icon, gradient, shadow, label, count }, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}
+                className="relative bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5 overflow-hidden hover:border-white/[0.1] transition-colors group"
+              >
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-3 shadow-lg ${shadow}`}>
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-[28px] font-black text-white tracking-tight leading-none mb-1">{count}</div>
+                <div className="text-[12px] text-[#555] font-medium">{label}</div>
+                {/* Subtle glow */}
+                <div className={`absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br ${gradient} rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity`} />
+              </motion.div>
             ))}
           </motion.div>
 
-          {/* Filter tabs */}
+          {/* ── Filter tabs ── */}
           <div className="flex items-center gap-2 mb-6">
-            {(["ALL", "VIDEO", "IMAGE"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${
-                  filter === f ? "bg-white text-black" : "bg-[#111] border border-[#1a1a1a] text-[#555] hover:text-white hover:border-[#2a2a2a]"
-                }`}>
-                {f === "ALL" && <LayoutGrid className="w-3.5 h-3.5" />}
-                {f === "VIDEO" && <Film className="w-3.5 h-3.5" />}
-                {f === "IMAGE" && <ImageIcon className="w-3.5 h-3.5" />}
-                {f === "ALL" ? "All" : f === "VIDEO" ? "Reels" : "Photos"}
-                <span className="opacity-50 text-[10px]">
-                  ({f === "ALL" ? media.length : f === "VIDEO" ? media.filter(m => m.type === "VIDEO").length : media.filter(m => m.type !== "VIDEO").length})
-                </span>
-              </button>
-            ))}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-1">
+              {(["ALL", "VIDEO", "IMAGE"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${
+                    filter === f
+                      ? "bg-white text-black shadow-sm"
+                      : "text-[#444] hover:text-[#888]"
+                  }`}
+                >
+                  {f === "ALL"   && <LayoutGrid className="w-3.5 h-3.5" />}
+                  {f === "VIDEO" && <Film       className="w-3.5 h-3.5" />}
+                  {f === "IMAGE" && <ImageIcon  className="w-3.5 h-3.5" />}
+                  {f === "ALL" ? "All" : f === "VIDEO" ? "Reels" : "Photos"}
+                  <span className={`text-[10px] font-black ${ filter === f ? "text-black/40" : "text-[#333]"}`}>
+                    {f === "ALL" ? media.length : f === "VIDEO" ? reelCount : photoCount}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Error */}
           {mediaError && (
-            <div className="mb-6 flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl text-[13px] text-red-400">
+            <div className="mb-6 flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/15 rounded-2xl text-[13px] text-red-400">
               <AlertCircle className="w-4 h-4 shrink-0" />{mediaError}
             </div>
           )}
 
-          {/* Grid */}
+          {/* ── Media Grid ── */}
           {mediaLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="rounded-2xl bg-[#111] border border-[#1a1a1a] overflow-hidden animate-pulse">
-                  <div className="aspect-[9/16] bg-[#161616]" />
-                  <div className="p-3 space-y-2"><div className="h-3 bg-[#161616] rounded w-3/4" /><div className="h-2 bg-[#161616] rounded w-1/2" /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden animate-pulse">
+                  <div className="aspect-[9/16] bg-white/[0.04]" />
+                  <div className="p-2.5 space-y-1.5">
+                    <div className="h-2.5 bg-white/[0.04] rounded w-3/4" />
+                    <div className="h-2 bg-white/[0.03] rounded w-1/2" />
+                  </div>
                 </div>
               ))}
             </div>
           ) : filteredMedia.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center mb-5 opacity-20">
+            <div className="flex flex-col items-center justify-center py-28 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex items-center justify-center mb-5 opacity-15">
                 <Instagram className="w-9 h-9 text-white" />
               </div>
-              <p className="text-[#444] font-bold mb-1">No posts found</p>
-              <p className="text-[#333] text-[13px]">{filter !== "ALL" ? "Try switching to 'All'" : "No media on this account."}</p>
+              <p className="text-[#333] font-bold mb-1">No posts found</p>
+              <p className="text-[#282828] text-[13px]">
+                {filter !== "ALL" ? "Try switching to 'All'" : "No media on this account."}
+              </p>
             </div>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+            >
               {filteredMedia.map((item, i) => (
-                <motion.div key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.035 }}>
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 22 }}
+                >
                   <MediaCard item={item} />
                 </motion.div>
               ))}
