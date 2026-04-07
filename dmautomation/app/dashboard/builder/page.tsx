@@ -18,6 +18,10 @@ import {
   Radio,
   Shield,
   Rocket,
+  Check,
+  Film,
+  RefreshCw,
+  Play,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
@@ -212,6 +216,24 @@ export default function AutomationBuilder() {
   const [brandTone, setBrandTone] = useState("Friendly & Natural");
   const [goal, setGoal] = useState("Move user to DM & Provide link");
 
+  // Instagram post picker
+  const [igPosts, setIgPosts]           = useState<any[]>([]);
+  const [igPostsLoading, setIgPostsLoading] = useState(false);
+  const [igPostsError, setIgPostsError] = useState("");
+  const [targetMode, setTargetMode]     = useState<"all" | "specific">("all");
+
+  const loadIgPosts = async () => {
+    setIgPostsLoading(true);
+    setIgPostsError("");
+    try {
+      const res  = await fetch("/api/instagram/media");
+      const data = await res.json();
+      if (data.error || !data.media) setIgPostsError(data.error || "No media found.");
+      else setIgPosts(data.media);
+    } catch { setIgPostsError("Failed to load posts."); }
+    finally { setIgPostsLoading(false); }
+  };
+
   useEffect(() => {
     async function fetchAutomation() {
       if (editId) {
@@ -245,8 +267,17 @@ export default function AutomationBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, keywords, response_message: isAiEnabled ? "" : replyMessage, trigger_type: triggerType, post_id: postId, is_ai_enabled: isAiEnabled, brand_tone: brandTone, goal }),
       });
-      if (res.ok) router.push("/dashboard");
-    } catch (error) { console.error(error); }
+      if (res.ok) {
+        router.push("/dashboard");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Save error:", errData);
+        alert(`Failed to save automation: ${errData.message || res.statusText}`);
+      }
+    } catch (error) { 
+      console.error(error); 
+      alert("Network error: Failed to save automation");
+    }
     finally { setIsSaving(false); }
   };
 
@@ -477,23 +508,137 @@ export default function AutomationBuilder() {
                     <h2 className="font-black text-base">Target Selection</h2>
                   </div>
 
+                  {/* All / Specific toggle */}
                   <div className="inline-flex items-center gap-1 bg-white/[0.04] border border-white/8 rounded-2xl p-1 mb-6">
-                    <button onClick={() => setPostId("all")}
-                      className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${postId === "all" ? "bg-white/10 text-white" : "text-white/30 hover:text-white/60"}`}>
+                    <button
+                      onClick={() => { setTargetMode("all"); setPostId("all"); }}
+                      className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+                        targetMode === "all" ? "bg-white/10 text-white" : "text-white/30 hover:text-white/60"
+                      }`}>
                       All Posts
                     </button>
-                    <button onClick={() => setPostId("")}
-                      className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${postId !== "all" ? "bg-white/10 text-white" : "text-white/30 hover:text-white/60"}`}>
+                    <button
+                      onClick={() => {
+                        setTargetMode("specific");
+                        setPostId("");
+                        if (igPosts.length === 0) loadIgPosts();
+                      }}
+                      className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+                        targetMode === "specific" ? "bg-orange-500/20 text-orange-300" : "text-white/30 hover:text-white/60"
+                      }`}>
                       Specific Media
                     </button>
                   </div>
 
+                  {/* Post picker */}
                   <AnimatePresence>
-                    {postId !== "all" && (
-                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-2">
-                        <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Instagram Media ID</label>
-                        <input type="text" placeholder="e.g. 178414053030273" className={`${inputClass} font-mono`} value={postId} onChange={(e) => setPostId(e.target.value)} />
-                        <p className="text-[11px] text-white/20 font-medium">AutoDM will only monitor this specific post for comments.</p>
+                    {targetMode === "specific" && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="space-y-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] text-white/30 font-medium">
+                            Select the post to monitor for comment triggers
+                          </p>
+                          <button
+                            onClick={loadIgPosts}
+                            disabled={igPostsLoading}
+                            className="flex items-center gap-1.5 text-[11px] text-orange-400/70 hover:text-orange-300 transition-colors"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${igPostsLoading ? "animate-spin" : ""}`} />
+                            Refresh
+                          </button>
+                        </div>
+
+                        {igPostsLoading ? (
+                          // Skeleton grid
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                              <div key={i} className="aspect-[9/16] rounded-xl bg-white/[0.04] animate-pulse" />
+                            ))}
+                          </div>
+                        ) : igPostsError ? (
+                          <div className="flex flex-col items-center gap-3 py-8 text-center">
+                            <Instagram className="w-10 h-10 text-orange-500/30" />
+                            <p className="text-[12px] text-orange-400/70">{igPostsError}</p>
+                            <p className="text-[11px] text-white/20">
+                              Make sure your Instagram account is connected on the{" "}
+                              <a href="/dashboard/instagram" className="text-orange-400 hover:underline">Instagram page</a>.
+                            </p>
+                          </div>
+                        ) : igPosts.length === 0 ? (
+                          <div className="flex flex-col items-center gap-3 py-8 text-center">
+                            <ImageIcon className="w-10 h-10 text-white/10" />
+                            <p className="text-[12px] text-white/30">No posts found on your account.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[420px] overflow-y-auto pr-1"
+                            style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+                            {igPosts.map((post) => {
+                              const selected = postId === post.id;
+                              const isReel   = post.type === "VIDEO";
+                              return (
+                                <button
+                                  key={post.id}
+                                  type="button"
+                                  onClick={() => setPostId(selected ? "" : post.id)}
+                                  className={`relative aspect-[9/16] rounded-xl overflow-hidden group transition-all duration-200 ${
+                                    selected
+                                      ? "ring-2 ring-orange-400 ring-offset-1 ring-offset-[#06060a] scale-[0.97]"
+                                      : "ring-1 ring-white/[0.06] hover:ring-orange-400/40 hover:scale-[0.98]"
+                                  }`}
+                                >
+                                  {post.url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={post.url}
+                                      alt={post.caption || "Post"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-white/[0.04] flex items-center justify-center">
+                                      <ImageIcon className="w-6 h-6 text-white/20" />
+                                    </div>
+                                  )}
+
+                                  {/* Reel badge */}
+                                  {isReel && (
+                                    <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-sm rounded-full p-1">
+                                      <Play className="w-2.5 h-2.5 text-white fill-white" />
+                                    </div>
+                                  )}
+
+                                  {/* Selection overlay */}
+                                  <div className={`absolute inset-0 transition-all duration-200 ${
+                                    selected
+                                      ? "bg-orange-500/25"
+                                      : "bg-black/0 group-hover:bg-black/20"
+                                  }`} />
+
+                                  {/* Checkmark */}
+                                  {selected && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center shadow-lg">
+                                        <Check className="w-4 h-4 text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Show selected post ID */}
+                        {postId && postId !== "all" && (
+                          <div className="flex items-center gap-2 p-3 bg-orange-500/8 border border-orange-500/20 rounded-xl">
+                            <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                            <p className="text-[11px] text-orange-300 font-mono truncate">Post ID: {postId}</p>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>

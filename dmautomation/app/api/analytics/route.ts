@@ -14,13 +14,13 @@ export async function GET() {
 
     // 1. Summary Stats
     const { count: totalSent } = await supabaseAdmin
-      .from("logs")
+      .from("automation_logs")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "sent");
 
     const { count: totalFailed } = await supabaseAdmin
-      .from("logs")
+      .from("automation_logs")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "failed");
@@ -42,7 +42,7 @@ export async function GET() {
       nextDate.setDate(date.getDate() + 1);
 
       const { count: dmsSent } = await supabaseAdmin
-        .from("logs")
+        .from("automation_logs")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("status", "sent")
@@ -50,7 +50,7 @@ export async function GET() {
         .lt("created_at", nextDate.toISOString());
 
       const { count: totalInteractions } = await supabaseAdmin
-        .from("logs")
+        .from("automation_logs")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
         .gte("created_at", date.toISOString())

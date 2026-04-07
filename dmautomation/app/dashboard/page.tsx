@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, MessageSquare, Clock, Zap, MoreVertical, Play, Pause, Loader2, Instagram, AlertCircle, ChevronRight } from "lucide-react";
+import { Plus, MessageSquare, Clock, Zap, MoreVertical, Play, Pause, Loader2, Instagram, AlertCircle, ChevronRight, Trash2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "framer-motion";
 
@@ -122,6 +122,22 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const deleteAutomation = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this automation?")) return;
+    try {
+      const res = await fetch(`/api/automations/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setAutomations(prev => prev.filter(a => a.id !== id));
+      } else {
+        console.error("Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
     }
   };
 
@@ -310,8 +326,12 @@ export default function DashboardPage() {
                     <Link href={`/dashboard/builder?id=${auto.id}`} className="relative overflow-hidden px-6 py-2.5 text-sm font-bold bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all duration-300 border border-white/10 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-1">
                       Edit
                     </Link>
-                    <button className="p-3 text-white/50 hover:text-white rounded-xl hover:bg-white/10 transition-all duration-300 border border-transparent hover:border-white/10 hover:shadow-lg">
-                      <MoreVertical className="w-4 h-4" />
+                    <button 
+                      onClick={() => deleteAutomation(auto.id)}
+                      className="p-3 text-red-400/70 hover:text-red-400 rounded-xl hover:bg-red-500/10 transition-all duration-300 border border-transparent hover:border-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                      title="Delete Automation"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>
