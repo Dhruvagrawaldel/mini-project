@@ -26,11 +26,27 @@ export async function POST(req: Request) {
         for (const change of entry.changes) {
           if (change.field === "comments") {
             const { value } = change;
+            
+            // Skip if the text is empty (e.g., in some delete or hide events)
+            if (!value || !value.text) continue;
+
             const commentText = value.text.toLowerCase();
             const commentId = value.id;
             const mediaId = value.media.id;
             const fromId = value.from.id;
             const igAccountId = entry.id;
+
+            // 1. Check if we ALREADY processed this comment to prevent duplicates (Meta retries webhooks on delays)
+            const { data: existingLog } = await supabaseAdmin
+              .from("logs")
+              .select("id")
+              .eq("comment_id", commentId)
+              .single();
+
+            if (existingLog) {
+              console.log(`Already processed comment ${commentId}, skipping to prevent duplicate spam.`);
+              continue;
+            }
 
             // 1. Find the user/business account in our DB
             const { data: user } = await supabaseAdmin
