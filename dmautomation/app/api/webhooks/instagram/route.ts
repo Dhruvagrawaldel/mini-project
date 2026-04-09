@@ -101,7 +101,7 @@ export async function POST(req: Request) {
                   await axios.post(
                     `https://graph.facebook.com/v19.0/me/messages`,
                     {
-                      recipient: { id: fromId },
+                      recipient: { comment_id: commentId },
                       message: { text: finalResponse },
                     },
                     {
