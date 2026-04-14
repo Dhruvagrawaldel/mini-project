@@ -1,6 +1,7 @@
-const url = "http://localhost:3000/api/instagram/webhook";
+const url = "http://localhost:3000/api/webhooks/instagram";
 
 const payload = {
+  object: "instagram", // ✅ REQUIRED — handler checks body.object === "instagram"
   entry: [
     {
       changes: [

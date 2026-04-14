@@ -98,8 +98,9 @@ export async function POST(req: Request) {
                   }
 
                   // 4. Send the DM via Instagram Graph API
+                  // ✅ Must use the ig_account_id in the URL — /me/messages goes to FB Messenger, not Instagram
                   await axios.post(
-                    `https://graph.facebook.com/v19.0/me/messages`,
+                    `https://graph.facebook.com/v21.0/${user.ig_account_id}/messages`,
                     {
                       recipient: { id: fromId },
                       message: { text: finalResponse },

@@ -34,9 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Instagram account not connected" }, { status: 400 });
     }
 
-    const res = await fetch(`https://graph.facebook.com/v21.0/${user.ig_account_id}/messages`, {
+    // ✅ Use ig_account_id in the URL path — /me/messages is FB Messenger only
+    const res = await fetch(`https://graph.facebook.com/v21.0/${user.ig_account_id}/messages?access_token=${user.ig_access_token}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         recipient: { id: recipientId },
         message:   { text: message },

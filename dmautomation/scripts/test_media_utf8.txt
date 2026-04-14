@@ -1,0 +1,18 @@
+﻿Testing Strategy 1 (IG API)...
+{
+  error: {
+    message: 'Invalid OAuth access token - Cannot parse access token',
+    type: 'OAuthException',
+    code: 190,
+    fbtrace_id: 'Ajf2KWLAsEU66YOJzakhFAC'
+  }
+}
+Testing Strategy 2 (FB API)...
+{
+  error: {
+    message: '(#100) Tried accessing nonexisting field (media)',
+    type: 'OAuthException',
+    code: 100,
+    fbtrace_id: 'A04F8PEjlwPi_fV888g4-NO'
+  }
+}

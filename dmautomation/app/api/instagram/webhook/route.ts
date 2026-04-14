@@ -65,13 +65,16 @@ export async function POST(req: Request) {
         for (const user of users) {
           // Check if this webhook is for this user's IG account
           // (In production, each user's webhook is separate — this handles shared webhook endpoints)
+          if (user.ig_account_id !== String(entry.id)) {
+            continue;
+          }
           
           const { data: automations } = await supabaseAdmin
             .from("automations")
             .select("*")
             .eq("user_id", user.id)
             .eq("is_active", true)
-            .eq("trigger_type", "comment");
+            .eq("trigger_type", "comment_keyword");
 
           if (!automations?.length) continue;
 
@@ -150,7 +153,7 @@ async function sendDM({ token, igAccountId, commentId, message }: {
   commentId: string;
   message: string;
 }) {
-  const url = `https://graph.facebook.com/v21.0/${igAccountId}/messages`;
+  const url = `https://graph.facebook.com/v21.0/me/messages`;
 
   const res = await fetch(url, {
     method: "POST",

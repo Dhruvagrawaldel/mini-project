@@ -1,0 +1,70 @@
+﻿AUTOMATIONS: 
+ [
+  {
+    "id": "7c4fb9b8-e119-4318-ac49-1a18c950438c",
+    "user_id": "8a91f4a5-459c-4f54-a91a-ceeab005ca08",
+    "name": "course",
+    "trigger_type": "comment_keyword",
+    "keywords": [
+      "how"
+    ],
+    "response_message": "",
+    "post_id": "17924639438980973",
+    "is_active": true,
+    "created_at": "2026-04-07T17:22:45.714234+00:00",
+    "updated_at": "2026-04-07T17:22:45.714234+00:00",
+    "is_ai_enabled": true,
+    "brand_tone": "Friendly & Natural",
+    "goal": "Move user to DM & Provide link"
+  },
+  {
+    "id": "ad9a3254-74b0-48b6-97fa-d2b699559668",
+    "user_id": "8a91f4a5-459c-4f54-a91a-ceeab005ca08",
+    "name": "Course Link AI Assistant",
+    "trigger_type": "comment_keyword",
+    "keywords": [
+      "dm"
+    ],
+    "response_message": "",
+    "post_id": "17924639438980973",
+    "is_active": true,
+    "created_at": "2026-04-07T17:26:57.9587+00:00",
+    "updated_at": "2026-04-07T17:26:57.9587+00:00",
+    "is_ai_enabled": true,
+    "brand_tone": "Friendly & Natural",
+    "goal": "Move user to DM & Provide link"
+  }
+]
+USERS: 
+ [
+  {
+    "id": "8b0a520d-6082-45ca-b5b0-ffa8200cc2a0",
+    "email": "andrew@gmail.cpm",
+    "password": "$2b$10$aQDXXQQK.zIe0N45ZJQ./O6YDFJoI4/1wqqdGXuojFJKmg9KGhsvy",
+    "name": "andrew",
+    "ig_account_id": null,
+    "ig_access_token": null,
+    "created_at": "2026-03-26T03:13:18.907445+00:00",
+    "updated_at": "2026-03-26T03:13:18.907445+00:00"
+  },
+  {
+    "id": "e162d86c-e25a-4b0d-a2e5-965b1f940478",
+    "email": "test@example.com",
+    "password": "$2b$10$DCt/1/PtREMxHW6Cfj/84up.zrWAp00IH8DhgB4itTM/yEqCHpAOu",
+    "name": "Test User",
+    "ig_account_id": null,
+    "ig_access_token": null,
+    "created_at": "2026-03-29T13:01:33.708098+00:00",
+    "updated_at": "2026-03-29T13:01:33.708098+00:00"
+  },
+  {
+    "id": "8a91f4a5-459c-4f54-a91a-ceeab005ca08",
+    "email": "goyal6353@gmail.com",
+    "password": "$2b$10$ddV.TV35kUkK91inWA336OpewWNa4nH2HYkDqj.9.eMWtam7RGe5u",
+    "name": "Dhruv Agrawal",
+    "ig_account_id": "26318286464529761",
+    "ig_access_token": "IGAAZApnXssta9BZAGFGcnJ3Q0xmWmVpaUtJSXpPYkt6NVFJd1owbGtsR1Y1MTE5d2RGbmUxcERoblluLWFtWUlyM3huNEwxWVZAoYUZAMWFMtbUlNbWRzeklTS2tpbHRNbS01eTF3Mm1ybWpOdkR3cUJSNFBB",
+    "created_at": "2026-03-14T12:38:55.678062+00:00",
+    "updated_at": "2026-04-02T13:53:04.686+00:00"
+  }
+]
