@@ -11,3 +11,11 @@ async function run() {
   console.log(data[0]?.ig_account_id);
 }
 run();
+
+
+
+
+
+
+
+
