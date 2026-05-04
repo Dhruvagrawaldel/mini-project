@@ -35,13 +35,15 @@ export async function POST(req: Request) {
     try {
       const igRes  = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${t}`);
       const igData = await igRes.json();
+      console.log("Instagram Basic API response:", igData);
 
       if (!igData.error && igData.id) {
         accountId = igData.id;
         username  = igData.username || "";
+        console.log("Detected IG Basic account:", { accountId, username });
       }
-    } catch {
-      /* fall through to strategy 2 */
+    } catch (err) {
+      console.error("IG Basic API error:", err);
     }
 
     // ── Strategy 2: Facebook Graph API (Business / User Token) ────────────────
@@ -52,6 +54,7 @@ export async function POST(req: Request) {
         // Try direct Facebook /me (for user access tokens)
         const fbRes  = await fetch(`https://graph.facebook.com/me?fields=id,name&access_token=${t}`);
         const fbData = await fbRes.json();
+        console.log("Facebook /me response:", fbData);
 
         if (!fbData.error && fbData.id) {
           // Get connected Facebook Pages → each Page has an instagram_business_account
@@ -59,6 +62,7 @@ export async function POST(req: Request) {
             `https://graph.facebook.com/me/accounts?fields=instagram_business_account{id,username}&access_token=${t}`
           );
           const pagesData = await pagesRes.json();
+          console.log("Facebook Pages response:", pagesData);
 
           // Pick the first page that has an IG account linked
           const igAccount = pagesData.data
@@ -68,20 +72,23 @@ export async function POST(req: Request) {
           if (igAccount) {
             accountId = igAccount.id;
             username  = igAccount.username || "";
+            console.log("Detected IG Business account via Pages:", { accountId, username });
           } else {
+            console.log("No IG account in Pages. Trying direct IG Biz field...");
             // Fallback: try the token as if it's a Page token with IG Business
             const bizRes  = await fetch(
               `https://graph.facebook.com/me?fields=instagram_business_account{id,username}&access_token=${t}`
             );
             const bizData = await bizRes.json();
+            console.log("Direct IG Biz field response:", bizData);
             if (bizData.instagram_business_account?.id) {
               accountId = bizData.instagram_business_account.id;
               username  = bizData.instagram_business_account.username || "";
             }
           }
         }
-      } catch {
-        /* fall through */
+      } catch (err) {
+        console.error("FB Strategy error:", err);
       }
     }
 

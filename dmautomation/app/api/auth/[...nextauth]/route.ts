@@ -57,30 +57,49 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        const { data: existingUser } = await supabaseAdmin
-          .from("users")
-          .select("id")
-          .eq("email", user.email)
-          .single();
+      console.log("SignIn callback started for provider:", account?.provider);
+      console.log("User email:", user.email);
 
-        if (!existingUser) {
-          const { data: newUser, error } = await supabaseAdmin
+      if (account?.provider === "google") {
+        try {
+          const { data: existingUser, error: fetchError } = await supabaseAdmin
             .from("users")
-            .insert([
-              {
-                email: user.email,
-                name: user.name,
-                image: (user as any).image || (user as any).picture,
-              },
-            ])
-            .select()
-            .single();
-          
-          if (error) return false;
-          user.id = newUser.id;
-        } else {
-          user.id = existingUser.id;
+            .select("id")
+            .eq("email", user.email)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("Error fetching existing user:", fetchError);
+            return false;
+          }
+
+          if (!existingUser) {
+            console.log("Creating new user in Supabase public.users...");
+            const { data: newUser, error: insertError } = await supabaseAdmin
+              .from("users")
+              .insert([
+                {
+                  email: user.email,
+                  name: user.name,
+                  image: (user as any).image || (user as any).picture,
+                },
+              ])
+              .select()
+              .single();
+            
+            if (insertError) {
+              console.error("Error creating new user:", insertError);
+              return false;
+            }
+            console.log("New user created successfully:", newUser.id);
+            user.id = newUser.id;
+          } else {
+            console.log("Existing user found:", existingUser.id);
+            user.id = existingUser.id;
+          }
+        } catch (err) {
+          console.error("Unexpected error in signIn callback:", err);
+          return false;
         }
       }
       return true;
